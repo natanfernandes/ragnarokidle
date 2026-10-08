@@ -4,3 +4,4 @@ export * from './combat-events';
 export * from './definitions';
 export * from './math';
 export * from './stats';
+export * from './position';

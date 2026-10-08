@@ -101,18 +101,26 @@ export class CombatSession {
   snapshot(): { character: CharacterState; derived: DerivedStats; combat: CombatSnapshot } {
     const character = this.currentCharacter();
     const monster = this.combat?.monster;
+    const player = this.combat?.player;
     return {
       character: structuredClone(character),
       derived: deriveStats(character),
       combat: {
         active: this.active,
         mapId: this.combat?.mapId ?? null,
+        player: player
+          ? { position: { ...player.position }, movement: structuredClone(player.movement) }
+          : null,
         monster: monster
           ? {
               instanceId: monster.instanceId,
               monsterId: monster.monsterId,
               hp: monster.hp,
               maxHp: monster.maxHp,
+              placement: {
+                position: { ...monster.position },
+                movement: structuredClone(monster.movement),
+              },
             }
           : null,
         respawnAt: this.combat?.player.respawnAt ?? null,
