@@ -1,0 +1,13 @@
+# Local sprite renderer. Requires extracted Ragnarok Online client data in
+# ./resources (see docs/renderer.md); nothing from the client is committed.
+services:
+  zrenderer:
+    image: zhade/zrenderer:latest
+    user: root
+    ports:
+      - '11011:11011'
+    volumes:
+      - ./zrenderer.conf:/zren/zrenderer.conf:ro
+      - ./resources:/zren/resources:ro
+      - ./output:/zren/output
+      - ./secrets:/zren/secrets

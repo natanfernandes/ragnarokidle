@@ -31,14 +31,14 @@ export const items: Record<string, ItemDefinition> = {
     name: 'Knife',
     category: 'equipment',
     sellPrice: 25,
-    equipment: { slot: 'weapon', attack: 10 },
+    equipment: { slot: 'weapon', viewId: 1, attack: 10 },
   },
   sword: {
     id: 'sword',
     name: 'Sword',
     category: 'equipment',
     sellPrice: 50,
-    equipment: { slot: 'weapon', attack: 25 },
+    equipment: { slot: 'weapon', viewId: 2, attack: 25 },
   },
   cotton_shirt: {
     id: 'cotton_shirt',
@@ -46,6 +46,20 @@ export const items: Record<string, ItemDefinition> = {
     category: 'equipment',
     sellPrice: 5,
     equipment: { slot: 'armor', defense: 1 },
+  },
+  guard: {
+    id: 'guard',
+    name: 'Guard',
+    category: 'equipment',
+    sellPrice: 250,
+    equipment: { slot: 'shield', viewId: 1, defense: 1 },
+  },
+  flower: {
+    id: 'flower',
+    name: 'Flower',
+    category: 'equipment',
+    sellPrice: 250,
+    equipment: { slot: 'headTop', viewId: 4 },
   },
   poring_card: { id: 'poring_card', name: 'Poring Card', category: 'card', sellPrice: 10 },
 };

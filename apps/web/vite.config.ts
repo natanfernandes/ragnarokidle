@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       '/game': { target: serverUrl, ws: true },
       '/health': serverUrl,
+      '/assets/render': serverUrl,
     },
   },
 });

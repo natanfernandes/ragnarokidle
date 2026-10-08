@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CombatSnapshot, OfflineRewards, ServerMessage } from '@ragidle/protocol';
+import type { AssetInfo, CombatSnapshot, OfflineRewards, ServerMessage } from '@ragidle/protocol';
 import type { CharacterState, CombatEvent, DerivedStats } from '@ragidle/shared';
 import { PLAYER_ACTOR_ID } from '@ragidle/shared';
 import type { ConnectionStatus } from '../net/game-client';
@@ -51,6 +51,7 @@ interface GameState {
   character: CharacterState | null;
   derived: DerivedStats | null;
   combat: CombatSnapshot | null;
+  assets: AssetInfo | null;
   monster: PresentedMonster | null;
   playerAnimation: ActorAnimation;
   monsterAnimation: ActorAnimation;
@@ -76,6 +77,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   character: null,
   derived: null,
   combat: null,
+  assets: null,
   monster: null,
   playerAnimation: animation('idle'),
   monsterAnimation: animation('idle'),
@@ -98,6 +100,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
           character: message.character,
           derived: message.derived,
           combat: message.combat,
+          assets: message.assets,
           playerDead: message.combat.respawnAt !== null,
           monster: monster ? { ...monster, dying: false } : s.monster?.dying ? s.monster : null,
           log: appendLog(s.log, coveredEvents),

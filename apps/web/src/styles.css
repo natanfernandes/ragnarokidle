@@ -290,6 +290,7 @@ button:hover {
   filter: grayscale(1);
 }
 .sprite {
+  position: relative;
   width: 100%;
   height: 100%;
 }
@@ -449,4 +450,25 @@ button:hover {
 }
 .dialog {
   width: min(360px, 90vw);
+}
+
+/* Rendered sprites share a 200x200 canvas with the feet at (100, 170). */
+.rendered-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  width: 200px;
+  height: 200px;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Rendered sprites animate themselves; keep only the hit flash and death fade. */
+.sprite.is-rendered.anim-idle,
+.sprite.is-rendered.anim-spawn,
+.sprite.is-rendered.anim-attack,
+.sprite.is-rendered.anim-skill {
+  animation: none;
 }

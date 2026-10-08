@@ -17,6 +17,10 @@ pnpm dev          # server on :3001, web on http://localhost:5173
 
 Open http://localhost:5173 and click **Farm Poring Meadow**.
 
+In development, sprites come from the public ragassets instance. See
+[docs/renderer.md](docs/renderer.md) to self-host a renderer or use
+placeholders.
+
 ## Scripts
 
 | Command                       | What it does                                    |
@@ -42,7 +46,9 @@ packages/
   game-data/       Data-driven content: classes, skills, monsters, items, maps
   combat-engine/   Pure deterministic simulation (seeded RNG, no I/O)
   protocol/        WebSocket messages and zod validation
-docs/              Architecture notes
+  renderer-client/ ragassets/zrenderer clients and sprite cache
+tooling/zrenderer/ Docker setup for the sprite renderer
+docs/              Architecture and renderer notes
 ```
 
 See [docs/architecture.md](docs/architecture.md) for how the pieces fit

@@ -2,7 +2,30 @@ import type { StatKey, Stats } from './stats';
 
 export type ItemCategory = 'consumable' | 'material' | 'equipment' | 'card' | 'currency' | 'quest';
 
-export type EquipmentSlot = 'weapon' | 'armor';
+export const EQUIPMENT_SLOTS = [
+  'weapon',
+  'shield',
+  'armor',
+  'garment',
+  'footgear',
+  'headTop',
+  'headMid',
+  'headLow',
+  'accessory1',
+  'accessory2',
+] as const;
+
+export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
+
+/** Slots that change how the character is drawn. */
+export const VISIBLE_EQUIPMENT_SLOTS = [
+  'weapon',
+  'shield',
+  'garment',
+  'headTop',
+  'headMid',
+  'headLow',
+] as const satisfies readonly EquipmentSlot[];
 
 export interface ItemEffect {
   restoreHp?: number;
@@ -20,6 +43,13 @@ export interface ItemDefinition {
   /** Present on equipment. */
   equipment?: {
     slot: EquipmentSlot;
+    /**
+     * Ragnarok Online view id, used by the sprite renderer for visible slots:
+     * weapon type or weapon view (weapon), shield view (shield), robe id
+     * (garment) and accessory view (headTop/headMid/headLow). Omit for
+     * equipment that is not drawn.
+     */
+    viewId?: number;
     attack?: number;
     defense?: number;
   };
@@ -33,8 +63,10 @@ export interface DropDefinition {
   maxQuantity: number;
 }
 
-/** Placeholder until the renderer is integrated: the client draws a simple shape. */
 export interface SpriteDefinition {
+  /** Ragnarok Online job or monster id, used by the sprite renderer. */
+  jobId?: number;
+  /** Drawn by the client when no rendered sprite is available. */
   placeholder: {
     shape: 'blob' | 'bug' | 'rabbit' | 'humanoid';
     color: string;

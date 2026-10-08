@@ -18,7 +18,7 @@ export const poring: MonsterDefinition = {
     { itemId: 'red_potion', chance: 0.02, minQuantity: 1, maxQuantity: 1 },
     { itemId: 'poring_card', chance: 0.0001, minQuantity: 1, maxQuantity: 1 },
   ],
-  sprite: { placeholder: { shape: 'blob', color: '#f48fb1' } },
+  sprite: { jobId: 1002, placeholder: { shape: 'blob', color: '#f48fb1' } },
 };
 
 export const fabre: MonsterDefinition = {
@@ -38,7 +38,7 @@ export const fabre: MonsterDefinition = {
     { itemId: 'red_potion', chance: 0.03, minQuantity: 1, maxQuantity: 1 },
     { itemId: 'sword', chance: 0.005, minQuantity: 1, maxQuantity: 1 },
   ],
-  sprite: { placeholder: { shape: 'bug', color: '#9ccc65' } },
+  sprite: { jobId: 1007, placeholder: { shape: 'bug', color: '#9ccc65' } },
 };
 
 export const lunatic: MonsterDefinition = {
@@ -58,7 +58,7 @@ export const lunatic: MonsterDefinition = {
     { itemId: 'feather', chance: 0.2, minQuantity: 1, maxQuantity: 2 },
     { itemId: 'cotton_shirt', chance: 0.01, minQuantity: 1, maxQuantity: 1 },
   ],
-  sprite: { placeholder: { shape: 'rabbit', color: '#f5f5f5' } },
+  sprite: { jobId: 1063, placeholder: { shape: 'rabbit', color: '#f5f5f5' } },
 };
 
 export const monsters: Record<string, MonsterDefinition> = {
