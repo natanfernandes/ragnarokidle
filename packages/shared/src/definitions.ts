@@ -1,4 +1,3 @@
-import type { GridPosition } from './position';
 import type { StatKey, Stats } from './stats';
 
 export type ItemCategory = 'consumable' | 'material' | 'equipment' | 'card' | 'currency' | 'quest';
@@ -84,15 +83,6 @@ export interface MonsterDefinition {
   hit: number;
   flee: number;
   attackIntervalMs: number;
-  /** Time to walk one cell (RO "speed"). */
-  moveSpeedMs: number;
-  /** Cells from which the monster can attack. */
-  attackRange: number;
-  /**
-   * Set on aggressive monsters: they walk up to a player within this many
-   * cells. Passive monsters wait for the player to come to them.
-   */
-  aggroRange?: number;
   experience: number;
   zeny: { min: number; max: number };
   drops: DropDefinition[];
@@ -109,10 +99,6 @@ export interface ClassDefinition {
   spPerLevel: number;
   /** Attack interval before AGI/DEX reductions. */
   baseAttackIntervalMs: number;
-  /** Time to walk one cell (RO "speed"). */
-  moveSpeedMs: number;
-  /** Cells from which the class attacks: 1 for melee. */
-  attackRange: number;
   startingStats: Stats;
   skills: string[];
   sprite: SpriteDefinition;
@@ -137,10 +123,6 @@ export interface MapDefinition {
   id: string;
   name: string;
   monsters: { monsterId: string; weight: number }[];
-  /** Size of the field in cells. */
-  size: { width: number; height: number };
-  /** Where players appear when they enter the map or respawn. */
-  spawnPoint: GridPosition;
   /** Delay between a kill and the next monster appearing. */
   encounterIntervalMs: { min: number; max: number };
 }

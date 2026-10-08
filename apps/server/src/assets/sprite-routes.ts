@@ -2,16 +2,19 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { gameData } from '@ragidle/game-data';
 import { SPRITE_ASSET_PATH } from '@ragidle/protocol';
 import {
-  type Direction,
+  Direction,
   type RenderRequest,
   RendererError,
   type SpriteService,
-  isDirection,
   isSpriteAction,
   monsterRenderRequest,
   playerRenderRequest,
 } from '@ragidle/renderer-client';
 import type { AppearanceRegistry } from './appearance';
+
+/** The player stands on the left facing right, monsters on the right facing left. */
+export const PLAYER_DIRECTION = Direction.southEast;
+export const MONSTER_DIRECTION = Direction.southWest;
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 const DAILY = 'public, max-age=86400';
@@ -50,33 +53,26 @@ export function registerSpriteRoutes(
     }
   };
 
-  /** Validates the shared `:action/:direction` part of sprite URLs. */
-  const pose = (action: string, direction: string) => {
-    const dir = Number(direction);
-    return isSpriteAction(action) && /^\d$/.test(direction) && isDirection(dir)
-      ? { action, direction: dir as Direction }
-      : null;
-  };
-
-  app.get<{ Params: { appearance: string; action: string; direction: string } }>(
-    `${SPRITE_ASSET_PATH}/player/:appearance/:action/:direction`,
+  app.get<{ Params: { appearance: string; action: string } }>(
+    `${SPRITE_ASSET_PATH}/player/:appearance/:action`,
     async (request, reply) => {
-      const { appearance, action, direction } = request.params;
+      const { appearance, action } = request.params;
       const known = appearances.get(appearance);
-      const p = pose(action, direction);
-      if (!known || !p) return reply.code(404).send({ error: 'Unknown sprite' });
-      return send(request, reply, playerRenderRequest(known, p.action, p.direction), IMMUTABLE);
+      if (!known || !isSpriteAction(action))
+        return reply.code(404).send({ error: 'Unknown sprite' });
+      return send(request, reply, playerRenderRequest(known, action, PLAYER_DIRECTION), IMMUTABLE);
     },
   );
 
-  app.get<{ Params: { monsterId: string; action: string; direction: string } }>(
-    `${SPRITE_ASSET_PATH}/monster/:monsterId/:action/:direction`,
+  app.get<{ Params: { monsterId: string; action: string } }>(
+    `${SPRITE_ASSET_PATH}/monster/:monsterId/:action`,
     async (request, reply) => {
-      const { monsterId, action, direction } = request.params;
+      const { monsterId, action } = request.params;
       const jobId = gameData.monsters[monsterId]?.sprite.jobId;
-      const p = pose(action, direction);
-      if (jobId === undefined || !p) return reply.code(404).send({ error: 'Unknown sprite' });
-      return send(request, reply, monsterRenderRequest(jobId, p.action, p.direction), DAILY);
+      if (jobId === undefined || !isSpriteAction(action)) {
+        return reply.code(404).send({ error: 'Unknown sprite' });
+      }
+      return send(request, reply, monsterRenderRequest(jobId, action, MONSTER_DIRECTION), DAILY);
     },
   );
 }

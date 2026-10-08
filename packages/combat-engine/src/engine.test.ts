@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  CharacterState,
-  ClassDefinition,
-  CombatEvent,
-  DamageEvent,
-  MonsterDefinition,
-} from '@ragidle/shared';
-import { PLAYER_ACTOR_ID, cellDistance } from '@ragidle/shared';
+import type { CharacterState, CombatEvent, DamageEvent, MonsterDefinition } from '@ragidle/shared';
+import { PLAYER_ACTOR_ID } from '@ragidle/shared';
 import { type GameData, gameData } from '@ragidle/game-data';
 import {
-  SPAWN_DISTANCE,
   advanceCombat,
   createCharacter,
   createCombatState,
@@ -37,10 +30,9 @@ function withoutSkills(character: CharacterState): CharacterState {
 }
 
 /** Game data with a single map that only spawns the given monster. */
-function dataWithOnly(monster: MonsterDefinition, swordmanClass?: ClassDefinition): GameData {
+function dataWithOnly(monster: MonsterDefinition): GameData {
   return {
     ...gameData,
-    classes: swordmanClass ? { ...gameData.classes, swordman: swordmanClass } : gameData.classes,
     monsters: { ...gameData.monsters, [monster.id]: monster },
     maps: {
       ...gameData.maps,
@@ -48,8 +40,6 @@ function dataWithOnly(monster: MonsterDefinition, swordmanClass?: ClassDefinitio
         id: 'arena',
         name: 'Arena',
         monsters: [{ monsterId: monster.id, weight: 1 }],
-        size: { width: 16, height: 14 },
-        spawnPoint: { x: 8, y: 7 },
         encounterIntervalMs: { min: 1000, max: 1000 },
       },
     },
@@ -122,17 +112,16 @@ describe('combat simulation', () => {
       events: result.events.length,
     }).toMatchInlineSnapshot(`
       {
-        "events": 244,
-        "hp": 141,
+        "events": 239,
+        "hp": 140,
         "items": {
-          "apple": 2,
-          "jellopy": 15,
-          "red_potion": 1,
+          "apple": 1,
+          "jellopy": 17,
         },
-        "kills": 21,
+        "kills": 23,
         "level": 5,
-        "xp": 210,
-        "zeny": 45,
+        "xp": 230,
+        "zeny": 59,
       }
     `);
   });
@@ -211,98 +200,6 @@ describe('combat simulation', () => {
     const levelUps = ofType(events, 'level_up');
     expect(levelUps.length).toBeGreaterThan(0);
     expect(finalState.character.level).toBe(1 + levelUps.length);
-  });
-});
-
-describe('movement', () => {
-  const poring = gameData.monsters.poring!;
-  const swordmanClass = gameData.classes.swordman!;
-  const run = (data: GameData, seed = 21, durationMs = 60_000) =>
-    simulateCombat({ character: swordman(), mapId: 'arena', durationMs, seed, data });
-
-  /** Every encounter's spawn, the walks that follow it, and each side's first blow. */
-  function encounters(events: CombatEvent[]) {
-    return ofType(events, 'monster_spawn').map((spawn) => {
-      const after = events.filter((e) => e.timestamp >= spawn.timestamp);
-      const attacks = after.filter(
-        (e): e is Extract<CombatEvent, { type: 'attack' | 'skill_cast' }> =>
-          e.type === 'attack' || e.type === 'skill_cast',
-      );
-      const firstBlow = attacks[0]?.timestamp ?? Infinity;
-      return {
-        spawn,
-        moves: ofType(after, 'move').filter((m) => m.timestamp <= firstBlow),
-        player: attacks.find((a) => a.attackerId === PLAYER_ACTOR_ID),
-        monster: attacks.find((a) => a.attackerId === spawn.monsterInstanceId),
-      };
-    });
-  }
-
-  it('spawns monsters a few cells from the player, inside the map', () => {
-    const { events } = run(dataWithOnly(poring));
-    let player = { x: 8, y: 7 };
-    for (const event of events) {
-      if (event.type === 'move' && event.actorId === PLAYER_ACTOR_ID) player = event.to;
-      if (event.type === 'player_respawn') player = event.position;
-      if (event.type !== 'monster_spawn') continue;
-      const { x, y } = event.position;
-      expect(x >= 0 && x < 16 && y >= 0 && y < 14).toBe(true);
-      expect(cellDistance(player, event.position)).toBeGreaterThanOrEqual(SPAWN_DISTANCE.min);
-      expect(cellDistance(player, event.position)).toBeLessThanOrEqual(SPAWN_DISTANCE.max);
-    }
-  });
-
-  it('keeps fights near the middle of the field', () => {
-    const { events } = run(dataWithOnly(poring), 3, 30 * 60_000);
-    const spawns = ofType(events, 'monster_spawn');
-    expect(spawns.length).toBeGreaterThan(100);
-    const near = (v: number, size: number) =>
-      v >= size / 4 - SPAWN_DISTANCE.max && v <= (3 * size) / 4 + SPAWN_DISTANCE.max;
-    expect(spawns.every(({ position: p }) => near(p.x, 16) && near(p.y, 14))).toBe(true);
-  });
-
-  it('walks the player up to passive monsters before attacking', () => {
-    const { events } = run(dataWithOnly(poring));
-    const list = encounters(events);
-    expect(list.length).toBeGreaterThan(3);
-    for (const { spawn, moves, player } of list.slice(0, -1)) {
-      const [walk] = moves;
-      expect(moves).toHaveLength(1);
-      expect(walk).toMatchObject({ actorId: PLAYER_ACTOR_ID, timestamp: spawn.timestamp });
-      expect(cellDistance(walk!.to, spawn.position)).toBe(1);
-      expect(walk!.arriveAt - walk!.timestamp).toBeGreaterThanOrEqual(
-        swordmanClass.moveSpeedMs * (SPAWN_DISTANCE.min - 1),
-      );
-      expect(player!.timestamp).toBeGreaterThanOrEqual(walk!.arriveAt);
-    }
-  });
-
-  it('lets aggressive monsters charge the player and strike on arrival', () => {
-    const { events } = run(dataWithOnly({ ...poring, id: 'mad_poring', aggroRange: 9 }));
-    for (const { spawn, moves, monster } of encounters(events).slice(0, -1)) {
-      const [charge] = moves;
-      expect(moves).toHaveLength(1);
-      expect(charge).toMatchObject({ actorId: spawn.monsterInstanceId, from: spawn.position });
-      // The player may kill it on arrival before it gets its blow in.
-      if (monster) expect(monster.timestamp).toBe(charge!.arriveAt);
-    }
-  });
-
-  it('makes melee monsters close in on ranged attackers', () => {
-    const archer = { ...swordmanClass, attackRange: 9 };
-    const { events } = run(dataWithOnly(poring, archer));
-    for (const { spawn, moves, player, monster } of encounters(events).slice(0, -1)) {
-      expect(moves.map((m) => m.actorId)).toEqual([spawn.monsterInstanceId]);
-      // The archer shoots while the monster is still walking up.
-      expect(player!.timestamp).toBeLessThan(moves[0]!.arriveAt);
-      if (monster) expect(monster.timestamp).toBeGreaterThanOrEqual(moves[0]!.arriveAt);
-    }
-  });
-
-  it('sends the player back to the spawn point on respawn', () => {
-    const data = dataWithOnly({ ...poring, id: 'angry', hp: 100_000, attack: 400, hit: 200 });
-    const { events } = run(data, 5, 30_000);
-    expect(ofType(events, 'player_respawn')[0]!.position).toEqual({ x: 8, y: 7 });
   });
 });
 

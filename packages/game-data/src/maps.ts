@@ -8,8 +8,6 @@ export const pronteraField: MapDefinition = {
     { monsterId: 'fabre', weight: 30 },
     { monsterId: 'lunatic', weight: 20 },
   ],
-  size: { width: 16, height: 14 },
-  spawnPoint: { x: 8, y: 7 },
   encounterIntervalMs: { min: 800, max: 1500 },
 };
 
@@ -18,8 +16,6 @@ export const poringField: MapDefinition = {
   id: 'poring_field',
   name: 'Poring Meadow',
   monsters: [{ monsterId: 'poring', weight: 1 }],
-  size: { width: 16, height: 14 },
-  spawnPoint: { x: 8, y: 7 },
   encounterIntervalMs: { min: 800, max: 1500 },
 };
 

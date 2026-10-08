@@ -39,8 +39,6 @@ describe('action indices', () => {
     expect(actionIndex('player', 'die', Direction.south)).toBe(64);
     expect(actionIndex('monster', 'attack', Direction.southWest)).toBe(17);
     expect(actionIndex('monster', 'die', Direction.south)).toBe(32);
-    expect(actionIndex('player', 'walk', Direction.north)).toBe(12);
-    expect(actionIndex('monster', 'walk', Direction.east)).toBe(14);
   });
 });
 

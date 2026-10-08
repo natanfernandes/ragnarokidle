@@ -1,34 +1,24 @@
 import type {
   CharacterState,
-  GridPosition,
   CombatConfig,
   CombatEvent,
   DerivedStats,
-  MapDefinition,
   MonsterDefinition,
-  Movement,
   PotionRule,
   SkillDefinition,
   SkillStrategy,
 } from '@ragidle/shared';
-import {
-  PLAYER_ACTOR_ID,
-  approachCell,
-  cellDistance,
-  clamp,
-  percent,
-  walkDurationMs,
-} from '@ragidle/shared';
+import { PLAYER_ACTOR_ID, percent } from '@ragidle/shared';
 import { type GameData, experienceToNextLevel, gameData } from '@ragidle/game-data';
 import { DAMAGE_VARIANCE, critChance, deriveStats, hitChance, physicalDamage } from './formulas';
 import { SeededRng } from './rng';
-import { type CombatState, type MonsterInstance, emptyStatistics } from './state';
+import { type CombatState, emptyStatistics } from './state';
 
 export const RESPAWN_DELAY_MS = 5_000;
 export const REGEN_INTERVAL_MS = 6_000;
 export const POTION_COOLDOWN_MS = 500;
-/** How far from the player, in cells, monsters appear. */
-export const SPAWN_DISTANCE = { min: 3, max: 6 } as const;
+/** Time for the player to close in on a freshly spawned monster. */
+export const ENGAGE_DELAY_MS = 500;
 /** Hard cap on processed actions per advance call, to protect the server. */
 export const MAX_ACTIONS_PER_ADVANCE = 2_000_000;
 
@@ -45,8 +35,7 @@ export function createCombatState(
   data: GameData = gameData,
 ): CombatState {
   const mapId = input.mapId ?? input.character.currentMapId;
-  const map = data.maps[mapId];
-  if (!map) throw new Error(`Unknown map: ${mapId}`);
+  if (!data.maps[mapId]) throw new Error(`Unknown map: ${mapId}`);
   const character = structuredClone(input.character);
   character.currentMapId = mapId;
   character.lastSimulationAt = input.startAt;
@@ -63,8 +52,6 @@ export function createCombatState(
     character,
     player: {
       nextActionAt: input.startAt,
-      position: { ...map.spawnPoint },
-      movement: null,
       respawnAt: dead ? input.startAt + RESPAWN_DELAY_MS : null,
       nextRegenAt: input.startAt + REGEN_INTERVAL_MS,
       potionReadyAt: input.startAt,
@@ -198,126 +185,29 @@ class Simulation {
   // --- Scheduling actions -------------------------------------------------
 
   private spawnMonster(at: number): void {
-    const map = this.map();
+    const map = this.data.maps[this.state.mapId];
+    if (!map) throw new Error(`Unknown map: ${this.state.mapId}`);
     const def = this.monsterDefinition(this.rng.pickWeighted(map.monsters).monsterId);
 
     this.state.spawnCounter += 1;
-    const monster: MonsterInstance = {
+    this.state.monster = {
       instanceId: `${def.id}#${this.state.spawnCounter}`,
       monsterId: def.id,
       hp: def.hp,
       maxHp: def.hp,
-      nextActionAt: at,
-      position: this.spawnCell(map),
-      movement: null,
+      // Monsters react quicker than a full swing on first contact.
+      nextActionAt: at + Math.round(def.attackIntervalMs / 2),
     };
-    this.state.monster = monster;
     this.state.nextSpawnAt = null;
+    this.state.player.nextActionAt = Math.max(this.state.player.nextActionAt, at + ENGAGE_DELAY_MS);
     this.emit({
       type: 'monster_spawn',
       timestamp: at,
-      monsterInstanceId: monster.instanceId,
+      monsterInstanceId: this.state.monster.instanceId,
       monsterId: def.id,
       hp: def.hp,
       maxHp: def.hp,
-      position: { ...monster.position },
     });
-    this.engage(at, monster, def);
-  }
-
-  /** A random free cell a few steps away from the player, inside the map. */
-  private spawnCell(map: MapDefinition): GridPosition {
-    const player = this.state.player.position;
-    const distance = this.rng.int(SPAWN_DISTANCE.min, SPAWN_DISTANCE.max);
-    // A random cell on the square ring at `distance` around the player.
-    const along = this.rng.int(-distance, distance);
-    const side = this.rng.chance(0.5) ? distance : -distance;
-    const [dx, dy] = this.rng.chance(0.5) ? [along, side] : [side, along];
-    // Mirror offsets that leave the map, or that lead further out once the
-    // player is well off-centre, so fights keep drifting back to the middle.
-    const axis = (origin: number, offset: number, size: number) => {
-      const centre = (size - 1) / 2;
-      const outward = Math.sign(offset) === Math.sign(origin - centre);
-      const value = origin + offset;
-      const flip = value < 0 || value >= size || (outward && Math.abs(origin - centre) > size / 4);
-      return clamp(flip ? origin - offset : value, 0, size - 1);
-    };
-    return {
-      x: axis(player.x, dx, map.size.width),
-      y: axis(player.y, dy, map.size.height),
-    };
-  }
-
-  /**
-   * Brings the player and a new monster within attack range. Aggressive
-   * monsters that see the player walk up to it; otherwise the player walks to
-   * the monster. A side still out of range afterwards (a melee monster facing
-   * a ranged attacker) closes in once the first walk ends. Walks are straight
-   * lines, so this costs the same whatever the distance.
-   */
-  private engage(at: number, monster: MonsterInstance, def: MonsterDefinition): void {
-    const player = this.state.player;
-    const cls = this.playerClass();
-    const aggressive =
-      def.aggroRange !== undefined &&
-      cellDistance(monster.position, player.position) <= def.aggroRange;
-
-    const contactAt = aggressive
-      ? this.walk(
-          monster.instanceId,
-          monster,
-          player.position,
-          def.attackRange,
-          at,
-          def.moveSpeedMs,
-        )
-      : this.walk(PLAYER_ACTOR_ID, player, monster.position, cls.attackRange, at, cls.moveSpeedMs);
-    const monsterReadyAt = this.walk(
-      monster.instanceId,
-      monster,
-      player.position,
-      def.attackRange,
-      contactAt,
-      def.moveSpeedMs,
-    );
-    const playerReadyAt = this.walk(
-      PLAYER_ACTOR_ID,
-      player,
-      monster.position,
-      cls.attackRange,
-      contactAt,
-      cls.moveSpeedMs,
-    );
-
-    player.nextActionAt = Math.max(player.nextActionAt, playerReadyAt);
-    // A monster that charged in strikes on arrival; one that was approached
-    // reacts quicker than a full swing.
-    monster.nextActionAt =
-      aggressive || monsterReadyAt > contactAt
-        ? monsterReadyAt
-        : contactAt + Math.round(def.attackIntervalMs / 2);
-  }
-
-  /**
-   * Walks an actor straight towards `target` until it is within `range`.
-   * Returns when it arrives (`at` when it does not need to move).
-   */
-  private walk(
-    actorId: string,
-    actor: { position: GridPosition; movement: Movement | null },
-    target: GridPosition,
-    range: number,
-    at: number,
-    msPerCell: number,
-  ): number {
-    const from = actor.position;
-    const to = approachCell(from, target, range);
-    if (to.x === from.x && to.y === from.y) return at;
-    const arriveAt = at + walkDurationMs(from, to, msPerCell);
-    actor.position = to;
-    actor.movement = { from: { ...from }, to: { ...to }, startAt: at, arriveAt };
-    this.emit({ type: 'move', timestamp: at, actorId, from: { ...from }, to: { ...to }, arriveAt });
-    return arriveAt;
   }
 
   private respawnPlayer(at: number): void {
@@ -325,8 +215,6 @@ class Simulation {
     this.character.sp = this.derived.maxSp;
     this.state.player.respawnAt = null;
     this.state.player.nextActionAt = at;
-    this.state.player.position = { ...this.map().spawnPoint };
-    this.state.player.movement = null;
     this.state.player.nextRegenAt = at + REGEN_INTERVAL_MS;
     this.scheduleNextSpawn(at);
     this.emit({
@@ -334,7 +222,6 @@ class Simulation {
       timestamp: at,
       hp: this.character.hp,
       sp: this.character.sp,
-      position: { ...this.state.player.position },
     });
   }
 
@@ -643,7 +530,8 @@ class Simulation {
   // --- Helpers ------------------------------------------------------------
 
   private scheduleNextSpawn(at: number): void {
-    const map = this.map();
+    const map = this.data.maps[this.state.mapId];
+    if (!map) throw new Error(`Unknown map: ${this.state.mapId}`);
     this.state.nextSpawnAt =
       at + this.rng.int(map.encounterIntervalMs.min, map.encounterIntervalMs.max);
   }
@@ -652,18 +540,6 @@ class Simulation {
     const remaining = (this.character.inventory[itemId] ?? 0) - quantity;
     if (remaining > 0) this.character.inventory[itemId] = remaining;
     else delete this.character.inventory[itemId];
-  }
-
-  private map(): MapDefinition {
-    const map = this.data.maps[this.state.mapId];
-    if (!map) throw new Error(`Unknown map: ${this.state.mapId}`);
-    return map;
-  }
-
-  private playerClass() {
-    const cls = this.data.classes[this.character.classId];
-    if (!cls) throw new Error(`Unknown class: ${this.character.classId}`);
-    return cls;
   }
 
   private monsterDefinition(id: string): MonsterDefinition {

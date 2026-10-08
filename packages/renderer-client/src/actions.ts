@@ -3,7 +3,7 @@
  * action indices used in Ragnarok Online ACT files (and by zrenderer).
  * An ACT action index is `baseAction + direction`.
  */
-export const SPRITE_ACTIONS = ['idle', 'walk', 'ready', 'attack', 'hit', 'die', 'cast'] as const;
+export const SPRITE_ACTIONS = ['idle', 'ready', 'attack', 'hit', 'die', 'cast'] as const;
 
 export type SpriteAction = (typeof SPRITE_ACTIONS)[number];
 
@@ -23,10 +23,6 @@ export const Direction = {
 
 export type Direction = (typeof Direction)[keyof typeof Direction];
 
-export function isDirection(value: number): value is Direction {
-  return Number.isInteger(value) && value >= 0 && value <= 7;
-}
-
 /**
  * Player attack motions. The body ACT has three weapon attack blocks (80, 88,
  * 96) besides the plain one at 40, and weapon sprites are drawn in step with
@@ -39,7 +35,6 @@ export const PLAYER_ATTACK_ARMED = 88;
 
 const PLAYER_ACTIONS: Record<SpriteAction, number> = {
   idle: 0,
-  walk: 8,
   ready: 32,
   attack: PLAYER_ATTACK_ARMED,
   hit: 48,
@@ -49,7 +44,6 @@ const PLAYER_ACTIONS: Record<SpriteAction, number> = {
 
 const MONSTER_ACTIONS: Record<SpriteAction, number> = {
   idle: 0,
-  walk: 8,
   ready: 0,
   attack: 16,
   hit: 24,

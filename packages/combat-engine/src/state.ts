@@ -1,4 +1,4 @@
-import type { CharacterState, GridPosition, Movement } from '@ragidle/shared';
+import type { CharacterState } from '@ragidle/shared';
 
 export interface MonsterInstance {
   instanceId: string;
@@ -6,18 +6,10 @@ export interface MonsterInstance {
   hp: number;
   maxHp: number;
   nextActionAt: number;
-  /** Where the monster stands, or will stand once its current walk ends. */
-  position: GridPosition;
-  /** The monster's latest walk; it may already be over. */
-  movement: Movement | null;
 }
 
 export interface PlayerCombatState {
   nextActionAt: number;
-  /** Where the player stands, or will stand once the current walk ends. */
-  position: GridPosition;
-  /** The player's latest walk; it may already be over. */
-  movement: Movement | null;
   /** Set while the player is dead; the player respawns at this time. */
   respawnAt: number | null;
   nextRegenAt: number;

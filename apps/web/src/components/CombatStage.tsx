@@ -1,15 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { gameData, swordman } from '@ragidle/game-data';
-import type { MapDefinition } from '@ragidle/shared';
-import {
-  type ActorAnimation,
-  type FloatingText,
-  PLAYER_DEFAULT_DIRECTION,
-  type StagePlacement,
-  useGameStore,
-} from '../stores/game-store';
+import { type ActorAnimation, type FloatingText, useGameStore } from '../stores/game-store';
 import { Bar } from './Bar';
-import { monsterSpriteUrl, playerSpriteUrl } from '../presentation/sprite-assets';
+import {
+  RENDERED_ACTIONS,
+  type RenderedAction,
+  monsterSpriteUrl,
+  playerSpriteUrl,
+  preloadSprites,
+} from '../presentation/sprite-assets';
 import { ActorSprite } from './ActorSprite';
 
 const FLOATING_TEXT_MS = 1000;
@@ -60,45 +59,11 @@ function Actor(props: {
   );
 }
 
-/** Vertical squash of the ground, for a Ragnarok-like three-quarter view. */
-const GROUND_TILT = 0.55;
-
-/**
- * Places an actor's feet on the field. Positions are percentages of the field,
- * so the stage scales with its container; x grows east and y grows north.
- */
-function StageActor(props: {
-  map: MapDefinition;
-  placement: StagePlacement;
-  children: React.ReactNode;
-}) {
-  const { map, placement } = props;
-  const { x, y } = placement.position;
-  const transition = placement.travelMs
-    ? `left ${placement.travelMs}ms linear, top ${placement.travelMs}ms linear`
-    : 'none';
-  return (
-    <div
-      className="stage-actor"
-      style={{
-        left: `${((x + 0.5) / map.size.width) * 100}%`,
-        top: `${((map.size.height - y - 0.5) / map.size.height) * 100}%`,
-        // Actors further south are closer to the camera.
-        zIndex: map.size.height - y,
-        transition,
-      }}
-    >
-      {props.children}
-    </div>
-  );
-}
-
 export function CombatStage() {
   const character = useGameStore((s) => s.character);
   const derived = useGameStore((s) => s.derived);
   const monster = useGameStore((s) => s.monster);
   const combat = useGameStore((s) => s.combat);
-  const playerPlacement = useGameStore((s) => s.playerPlacement);
   const playerAnimation = useGameStore((s) => s.playerAnimation);
   const monsterAnimation = useGameStore((s) => s.monsterAnimation);
   const playerDead = useGameStore((s) => s.playerDead);
@@ -107,34 +72,33 @@ export function CombatStage() {
   const appearance = assets?.playerAppearance;
   const monsterId = monster?.monsterId;
 
-  const playerUrl = useMemo(
-    () => (rendered && appearance ? playerSpriteUrl(appearance) : null),
-    [rendered, appearance],
+  const playerUrl = useCallback(
+    (action: RenderedAction) => playerSpriteUrl(appearance ?? '', action),
+    [appearance],
   );
-  const monsterUrl = useMemo(
-    () => (rendered && monsterId ? monsterSpriteUrl(monsterId) : null),
-    [rendered, monsterId],
+  const monsterUrl = useCallback(
+    (action: RenderedAction) => monsterSpriteUrl(monsterId ?? '', action),
+    [monsterId],
   );
 
+  // Fetch every action up front so the first attack or hit does not stall.
+  useEffect(() => {
+    if (rendered && appearance) preloadSprites(RENDERED_ACTIONS.map(playerUrl));
+  }, [rendered, appearance, playerUrl]);
+  useEffect(() => {
+    if (rendered && monsterId) preloadSprites(RENDERED_ACTIONS.map(monsterUrl));
+  }, [rendered, monsterId, monsterUrl]);
+
   const monsterDef = monster ? gameData.monsters[monster.monsterId] : undefined;
-  const map = gameData.maps[combat?.mapId ?? character?.currentMapId ?? ''];
-  const player: StagePlacement | null =
-    playerPlacement ??
-    (map ? { position: map.spawnPoint, travelMs: 0, direction: PLAYER_DEFAULT_DIRECTION } : null);
+  const mapName = combat?.mapId ? gameData.maps[combat.mapId]?.name : undefined;
 
   return (
     <section className="stage">
-      <div className="stage-title">{combat?.active && map ? map.name : 'Not farming'}</div>
-      {map && (
-        <div
-          className="field"
-          style={{
-            aspectRatio: `${map.size.width} / ${map.size.height * GROUND_TILT}`,
-            backgroundSize: `${100 / map.size.width}% ${100 / map.size.height}%`,
-          }}
-        >
-          {character && derived && player && (
-            <StageActor map={map} placement={player}>
+      <div className="stage-title">{mapName ?? 'Not farming'}</div>
+      <div className="stage-ground">
+        <div className="stage-slot">
+          {character && derived && (
+            <>
               <div className="nameplate">
                 {character.name}
                 <Bar kind="hp" value={character.hp} max={derived.maxHp} label="" />
@@ -143,20 +107,21 @@ export function CombatStage() {
                 side="player"
                 animation={playerAnimation}
                 dead={playerDead}
-                rendered={!!playerUrl}
+                rendered={rendered && !!appearance}
               >
                 <ActorSprite
                   animation={playerAnimation}
-                  spriteUrl={playerUrl}
-                  direction={player.direction}
+                  spriteUrl={rendered && appearance ? playerUrl : null}
                   placeholder={swordman.sprite}
                   facing="right"
                 />
               </Actor>
-            </StageActor>
+            </>
           )}
+        </div>
+        <div className="stage-slot">
           {monster && monsterDef && (
-            <StageActor map={map} placement={monster.placement}>
+            <>
               <div className="nameplate">
                 {monsterDef.name} <small>Lv {monsterDef.level}</small>
                 <Bar kind="monster" value={monster.hp} max={monster.maxHp} label="" />
@@ -165,21 +130,22 @@ export function CombatStage() {
                 side="monster"
                 animation={monsterAnimation}
                 dead={monster.dying}
-                rendered={!!monsterUrl}
+                rendered={rendered}
               >
                 <ActorSprite
                   animation={monsterAnimation}
-                  spriteUrl={monsterUrl}
-                  direction={monster.placement.direction}
+                  spriteUrl={rendered ? monsterUrl : null}
                   placeholder={monsterDef.sprite}
                   facing="left"
                 />
               </Actor>
-            </StageActor>
+            </>
+          )}
+          {!monster && combat?.active && !playerDead && (
+            <div className="stage-hint">Searching…</div>
           )}
         </div>
-      )}
-      {!monster && combat?.active && !playerDead && <div className="stage-hint">Searching…</div>}
+      </div>
       {playerDead && <div className="stage-banner">You died. Respawning…</div>}
     </section>
   );

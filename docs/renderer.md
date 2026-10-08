@@ -53,8 +53,8 @@ Armor, footgear and accessories are not drawn. Monsters use their
 ## How it fits together
 
 ```text
-Browser ── GET /assets/render/player/{appearance}/{action}/{direction} ──► game server
-        ── GET /assets/render/monster/{monsterId}/{action}/{direction} ──►     │
+Browser ── GET /assets/render/player/{appearance}/{action} ──► game server
+        ── GET /assets/render/monster/{monsterId}/{action} ──►     │
                                                                     │ cache miss
                                                                     ▼
                          ragassets GET /image  or  zrenderer POST /render

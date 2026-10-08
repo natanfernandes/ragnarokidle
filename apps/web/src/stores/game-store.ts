@@ -1,13 +1,7 @@
 import { create } from 'zustand';
-import type {
-  ActorPlacement,
-  AssetInfo,
-  CombatSnapshot,
-  OfflineRewards,
-  ServerMessage,
-} from '@ragidle/protocol';
-import type { CharacterState, CombatEvent, DerivedStats, GridPosition } from '@ragidle/shared';
-import { PLAYER_ACTOR_ID, facingDirection } from '@ragidle/shared';
+import type { AssetInfo, CombatSnapshot, OfflineRewards, ServerMessage } from '@ragidle/protocol';
+import type { CharacterState, CombatEvent, DerivedStats } from '@ragidle/shared';
+import { PLAYER_ACTOR_ID } from '@ragidle/shared';
 import type { ConnectionStatus } from '../net/game-client';
 import { type LogKind, describeEvent } from '../presentation/describe-event';
 
@@ -16,25 +10,12 @@ import { type LogKind, describeEvent } from '../presentation/describe-event';
  * authoritative server snapshot or replayed from authoritative events.
  */
 
-export type AnimationKind =
-  'idle' | 'walk' | 'attack' | 'skill' | 'hit' | 'dying' | 'dead' | 'spawn';
+export type AnimationKind = 'idle' | 'attack' | 'skill' | 'hit' | 'dying' | 'dead' | 'spawn';
 
 export interface ActorAnimation {
   kind: AnimationKind;
   /** Changes on every new animation so CSS animations restart. */
   key: number;
-  /** How long the animation lasts when the simulation decides it (walks). */
-  durationMs?: number;
-}
-
-/** Where an actor is drawn on the field. */
-export interface StagePlacement {
-  /** The cell the actor stands on, or is walking to. */
-  position: GridPosition;
-  /** Time to slide to `position`; 0 places the actor there at once. */
-  travelMs: number;
-  /** Ragnarok Online direction (0 south ... 7 south-east). */
-  direction: number;
 }
 
 export interface PresentedMonster {
@@ -43,7 +24,6 @@ export interface PresentedMonster {
   hp: number;
   maxHp: number;
   dying: boolean;
-  placement: StagePlacement;
 }
 
 export type FloatingKind = 'damage' | 'critical' | 'miss' | 'heal' | 'skill' | 'reward';
@@ -73,8 +53,6 @@ interface GameState {
   combat: CombatSnapshot | null;
   assets: AssetInfo | null;
   monster: PresentedMonster | null;
-  /** Null until the player has been placed on a field. */
-  playerPlacement: StagePlacement | null;
   playerAnimation: ActorAnimation;
   monsterAnimation: ActorAnimation;
   playerDead: boolean;
@@ -91,36 +69,7 @@ interface GameState {
 }
 
 let nextId = 1;
-const animation = (kind: AnimationKind, durationMs?: number): ActorAnimation => ({
-  kind,
-  key: nextId++,
-  ...(durationMs ? { durationMs } : {}),
-});
-
-/** The player faces south-east and monsters south-west until they turn. */
-export const PLAYER_DEFAULT_DIRECTION = 7;
-export const MONSTER_DEFAULT_DIRECTION = 1;
-
-/** Places an actor from a snapshot, sliding it on if its walk is still under way. */
-function placementFrom(
-  placement: ActorPlacement,
-  serverTime: number,
-  direction: number,
-): StagePlacement {
-  const { position, movement } = placement;
-  const travelMs = movement ? Math.max(0, movement.arriveAt - serverTime) : 0;
-  return {
-    position,
-    travelMs,
-    direction:
-      movement && travelMs > 0 ? facingDirection(movement.from, movement.to, direction) : direction,
-  };
-}
-
-const facing = (placement: StagePlacement, target: StagePlacement | null | undefined) =>
-  target
-    ? facingDirection(placement.position, target.position, placement.direction)
-    : placement.direction;
+const animation = (kind: AnimationKind): ActorAnimation => ({ kind, key: nextId++ });
 
 export const useGameStore = create<GameState>()((set, get) => ({
   status: 'disconnected',
@@ -130,7 +79,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
   combat: null,
   assets: null,
   monster: null,
-  playerPlacement: null,
   playerAnimation: animation('idle'),
   monsterAnimation: animation('idle'),
   playerDead: false,
@@ -147,38 +95,14 @@ export const useGameStore = create<GameState>()((set, get) => ({
         set({ characterId: message.characterId, lastError: null });
         return;
       case 'state.snapshot': {
-        const { monster, player } = message.combat;
+        const monster = message.combat.monster;
         set((s) => ({
           character: message.character,
           derived: message.derived,
           combat: message.combat,
           assets: message.assets,
           playerDead: message.combat.respawnAt !== null,
-          playerPlacement: player
-            ? placementFrom(
-                player,
-                message.serverTime,
-                s.playerPlacement?.direction ?? PLAYER_DEFAULT_DIRECTION,
-              )
-            : s.playerPlacement,
-          monster: monster
-            ? {
-                instanceId: monster.instanceId,
-                monsterId: monster.monsterId,
-                hp: monster.hp,
-                maxHp: monster.maxHp,
-                dying: false,
-                placement: placementFrom(
-                  monster.placement,
-                  message.serverTime,
-                  s.monster?.instanceId === monster.instanceId
-                    ? s.monster.placement.direction
-                    : MONSTER_DEFAULT_DIRECTION,
-                ),
-              }
-            : s.monster?.dying
-              ? s.monster
-              : null,
+          monster: monster ? { ...monster, dying: false } : s.monster?.dying ? s.monster : null,
           log: appendLog(s.log, coveredEvents),
         }));
         return;
@@ -199,54 +123,28 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const s = get();
     const character = s.character && { ...s.character };
     const derived = s.derived && { ...s.derived };
-    let { monster, playerPlacement, playerAnimation, monsterAnimation, playerDead } = s;
+    let { monster, playerAnimation, monsterAnimation, playerDead } = s;
     const floating: FloatingText[] = [];
     const isPlayer = (id: string) => id === PLAYER_ACTOR_ID;
     const float = (target: FloatingText['target'], text: string, kind: FloatingKind) =>
       animate && floating.push({ id: nextId++, target, text, kind });
 
     switch (event.type) {
-      case 'monster_spawn': {
-        const placement = {
-          position: event.position,
-          travelMs: 0,
-          direction: MONSTER_DEFAULT_DIRECTION,
-        };
+      case 'monster_spawn':
         monster = {
           instanceId: event.monsterInstanceId,
           monsterId: event.monsterId,
           hp: event.hp,
           maxHp: event.maxHp,
           dying: false,
-          placement: { ...placement, direction: facing(placement, playerPlacement) },
         };
         monsterAnimation = animation('spawn');
         break;
-      }
-      case 'move': {
-        const travelMs = animate ? event.arriveAt - event.timestamp : 0;
-        const walk = (direction: number): StagePlacement => ({
-          position: event.to,
-          travelMs,
-          direction: facingDirection(event.from, event.to, direction),
-        });
-        if (isPlayer(event.actorId)) {
-          playerPlacement = walk(playerPlacement?.direction ?? PLAYER_DEFAULT_DIRECTION);
-          playerAnimation = animation('walk', travelMs);
-        } else if (monster?.instanceId === event.actorId) {
-          monster = { ...monster, placement: walk(monster.placement.direction) };
-          monsterAnimation = animation('walk', travelMs);
-        }
-        break;
-      }
       case 'attack':
-        // Both sides turn to face each other when blows are exchanged.
-        [playerPlacement, monster] = faceEachOther(playerPlacement, monster);
         if (isPlayer(event.attackerId)) playerAnimation = animation('attack');
         else monsterAnimation = animation('attack');
         break;
       case 'skill_cast':
-        [playerPlacement, monster] = faceEachOther(playerPlacement, monster);
         playerAnimation = animation('skill');
         if (character) character.sp = event.sp;
         float('player', event.skillId === 'bash' ? 'Bash!' : event.skillId, 'skill');
@@ -295,11 +193,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
           character.sp = event.sp;
         }
         playerDead = false;
-        playerPlacement = {
-          position: event.position,
-          travelMs: 0,
-          direction: PLAYER_DEFAULT_DIRECTION,
-        };
         playerAnimation = animation('spawn');
         break;
       case 'loot':
@@ -337,7 +230,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
       character,
       derived,
       monster,
-      playerPlacement,
       playerDead,
       playerAnimation: animate ? playerAnimation : s.playerAnimation,
       monsterAnimation: animate ? monsterAnimation : s.monsterAnimation,
@@ -349,20 +241,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
   removeFloating: (id) => set((s) => ({ floating: s.floating.filter((f) => f.id !== id) })),
   dismissOfflineRewards: () => set({ offlineRewards: null }),
 }));
-
-function faceEachOther(
-  player: StagePlacement | null,
-  monster: PresentedMonster | null,
-): [StagePlacement | null, PresentedMonster | null] {
-  if (!player || !monster) return [player, monster];
-  return [
-    { ...player, direction: facing(player, monster.placement) },
-    {
-      ...monster,
-      placement: { ...monster.placement, direction: facing(monster.placement, player) },
-    },
-  ];
-}
 
 function withQuantity(inventory: Record<string, number>, itemId: string, quantity: number) {
   const next = { ...inventory };
