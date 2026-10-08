@@ -1,0 +1,59 @@
+# Architecture
+
+## Combat engine (`packages/combat-engine`)
+
+The engine is event-driven and time-agnostic. `CombatState` holds the next
+scheduled time for every actor (player action, monster action, next spawn,
+respawn, regen). `advanceCombat(state, until)` repeatedly processes the earliest
+scheduled action until nothing is due before `until`, and returns a new state
+plus the `CombatEvent`s produced. It never mutates its input.
+
+Key properties, all covered by tests:
+
+- **Deterministic.** All randomness comes from a seeded mulberry32 RNG whose
+  state lives in `CombatState.rngState`. Same seed, same events.
+- **Step-independent.** Advancing in many small steps yields exactly the same
+  events and final state as advancing once. This is what lets the server
+  advance lazily, and what makes offline progression equal to online play.
+- **Pure.** ESLint forbids `Math.random`, `Date.now`, timers and `process`
+  inside the engine.
+
+`simulateCombat(input)` wraps this for one-shot runs (tests, balance tool).
+
+Formulas live in `formulas.ts` and are placeholders to be tuned with
+`pnpm simulate`.
+
+## Server (`apps/server`)
+
+- `CombatSession` owns one character's combat. While a client is connected, a
+  single `setTimeout` fires at the next scheduled action (no polling loop),
+  advances the engine to "now", and broadcasts the events.
+- When the last client disconnects, the timer stops. On reconnect, the elapsed
+  time is simulated in one call (`recordEvents: false`) and summarized as an
+  `offline.rewards` message. Rewards are part of the state, so reconnecting
+  never duplicates them. The simulated time is capped by `MAX_OFFLINE_HOURS`.
+- Every client message is validated with zod (`packages/protocol`), rate
+  limited, and checked against game rules (`GameRuleError`).
+- Authentication is a development stub: the token `dev:<name>` maps to a
+  character. Characters are stored in memory behind `CharacterRepository`.
+
+## Web (`apps/web`)
+
+- `GameClient` connects, authenticates, and reconnects with backoff. After a
+  reconnect the server sends the authoritative snapshot.
+- `PresentationScheduler` replays events on a local timeline: simulation time
+  is mapped through the server clock offset plus a small buffer, so batched
+  events keep their original spacing. Far-behind backlogs are applied without
+  animation.
+- `useGameStore` (Zustand) holds presentation state only: values copied from
+  snapshots or replayed from events. It never computes outcomes.
+- Sprites are SVG placeholders driven by `SpriteDefinition.placeholder`.
+
+## Not done yet (by design, see spec section 78)
+
+1. Renderer integration (zrenderer / ragassets) replacing placeholder sprites
+2. PostgreSQL + Drizzle behind `CharacterRepository`
+3. Batched / statistical offline simulation for very long absences
+4. Real authentication
+5. Equipment changes, stat allocation, more content
+6. Target selection modes (only single encounters exist so far)

@@ -1,0 +1,51 @@
+import type { ItemDefinition } from '@ragidle/shared';
+
+export const items: Record<string, ItemDefinition> = {
+  jellopy: { id: 'jellopy', name: 'Jellopy', category: 'material', sellPrice: 3 },
+  fluff: { id: 'fluff', name: 'Fluff', category: 'material', sellPrice: 4 },
+  clover: { id: 'clover', name: 'Clover', category: 'material', sellPrice: 3 },
+  feather: { id: 'feather', name: 'Feather', category: 'material', sellPrice: 4 },
+  apple: {
+    id: 'apple',
+    name: 'Apple',
+    category: 'consumable',
+    sellPrice: 7,
+    effect: { restoreHp: 16 },
+  },
+  red_potion: {
+    id: 'red_potion',
+    name: 'Red Potion',
+    category: 'consumable',
+    sellPrice: 25,
+    effect: { restoreHp: 45 },
+  },
+  blue_potion: {
+    id: 'blue_potion',
+    name: 'Blue Potion',
+    category: 'consumable',
+    sellPrice: 2500,
+    effect: { restoreSp: 60 },
+  },
+  knife: {
+    id: 'knife',
+    name: 'Knife',
+    category: 'equipment',
+    sellPrice: 25,
+    equipment: { slot: 'weapon', attack: 10 },
+  },
+  sword: {
+    id: 'sword',
+    name: 'Sword',
+    category: 'equipment',
+    sellPrice: 50,
+    equipment: { slot: 'weapon', attack: 25 },
+  },
+  cotton_shirt: {
+    id: 'cotton_shirt',
+    name: 'Cotton Shirt',
+    category: 'equipment',
+    sellPrice: 5,
+    equipment: { slot: 'armor', defense: 1 },
+  },
+  poring_card: { id: 'poring_card', name: 'Poring Card', category: 'card', sellPrice: 10 },
+};

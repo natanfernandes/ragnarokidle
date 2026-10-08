@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Node types are needed for structuredClone and the CLI tools. The engine
+    // itself is kept free of I/O by ESLint rules (see eslint.config.js).
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
