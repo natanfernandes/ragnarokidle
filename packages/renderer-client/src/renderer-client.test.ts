@@ -34,7 +34,8 @@ const swordman: PlayerAppearance = {
 describe('action indices', () => {
   it('matches the RO ACT layout used by zrenderer', () => {
     expect(actionIndex('player', 'idle', Direction.south)).toBe(0);
-    expect(actionIndex('player', 'attack', Direction.southEast)).toBe(47);
+    expect(actionIndex('player', 'attack', Direction.southEast)).toBe(95);
+    expect(actionIndex('player', 'attack', Direction.south, { armed: false })).toBe(80);
     expect(actionIndex('player', 'die', Direction.south)).toBe(64);
     expect(actionIndex('monster', 'attack', Direction.southWest)).toBe(17);
     expect(actionIndex('monster', 'die', Direction.south)).toBe(32);
@@ -45,7 +46,7 @@ describe('render requests', () => {
   it('builds a player request with appearance and a fixed canvas', () => {
     expect(playerRenderRequest(swordman, 'attack', Direction.southEast)).toMatchObject({
       job: ['1'],
-      action: 47,
+      action: 95,
       frame: -1,
       gender: 1,
       weapon: 1,
@@ -57,6 +58,11 @@ describe('render requests', () => {
     const withHeadgear = { ...swordman, headgear: [0, 125, 0] as PlayerAppearance['headgear'] };
     expect(playerRenderRequest(swordman, 'idle', 0).headgear).toEqual([]);
     expect(playerRenderRequest(withHeadgear, 'idle', 0).headgear).toEqual([0, 125]);
+  });
+
+  it('uses the unarmed attack motion without a weapon', () => {
+    const unarmed = { ...swordman, weaponViewId: 0 };
+    expect(playerRenderRequest(unarmed, 'attack', Direction.southEast).action).toBe(87);
   });
 
   it('builds a monster request', () => {

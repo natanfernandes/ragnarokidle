@@ -29,7 +29,7 @@ describe('toQuery', () => {
     );
     expect(toQuery(request)).toEqual({
       job: '1',
-      action: '47',
+      action: '95',
       frame: '-1',
       gender: 'female',
       head: '4',

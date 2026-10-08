@@ -64,8 +64,8 @@ describe('sprite routes', () => {
       url: `/assets/render/player/${assets.playerAppearance}/attack`,
     });
     expect(response.statusCode).toBe(200);
-    // Swordman (job 1) holding a Knife (dagger view 1), attack facing south-east.
-    expect(renderer.render.mock.calls[0]![0]).toMatchObject({ job: ['1'], weapon: 1, action: 47 });
+    // Swordman (job 1) holding a Knife (dagger view 1), attack (armed motion) facing south-east.
+    expect(renderer.render.mock.calls[0]![0]).toMatchObject({ job: ['1'], weapon: 1, action: 95 });
   });
 
   it('lets browsers cache player sprites forever and revalidate monster sprites', async () => {

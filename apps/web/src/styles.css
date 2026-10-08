@@ -464,3 +464,11 @@ button:hover {
   pointer-events: none;
   user-select: none;
 }
+
+/* Rendered sprites animate themselves; keep only the hit flash and death fade. */
+.sprite.is-rendered.anim-idle,
+.sprite.is-rendered.anim-spawn,
+.sprite.is-rendered.anim-attack,
+.sprite.is-rendered.anim-skill {
+  animation: none;
+}

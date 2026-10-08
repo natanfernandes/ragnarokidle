@@ -52,8 +52,13 @@ export const SPRITE_CANVAS = { width: 200, height: 200, originX: 100, originY: 1
 const canvas = () =>
   `${SPRITE_CANVAS.width}x${SPRITE_CANVAS.height}+${SPRITE_CANVAS.originX}+${SPRITE_CANVAS.originY}`;
 
-const baseRequest = (kind: SpriteKind, action: SpriteAction, direction: Direction) => ({
-  action: actionIndex(kind, action, direction),
+const baseRequest = (
+  kind: SpriteKind,
+  action: SpriteAction,
+  direction: Direction,
+  options: { armed?: boolean } = {},
+) => ({
+  action: actionIndex(kind, action, direction, options),
   // -1 renders every frame of the action as one animated PNG.
   frame: -1,
   enableShadow: true,
@@ -67,7 +72,7 @@ export function playerRenderRequest(
   direction: Direction,
 ): RenderRequest {
   return {
-    ...baseRequest('player', action, direction),
+    ...baseRequest('player', action, direction, { armed: appearance.weaponViewId !== 0 }),
     job: [String(appearance.jobId)],
     gender: appearance.gender === 'male' ? 1 : 0,
     head: appearance.head,
