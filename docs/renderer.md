@@ -1,8 +1,29 @@
 # Sprite renderer
 
-Combat sprites are rendered by [zrenderer](https://github.com/zhad3/zrenderer),
-running as a separate service. The game works without it: when no renderer is
-configured the web client draws SVG placeholders.
+Combat sprites come from a sprite renderer service. Two are supported, with
+the same action indices and output:
+
+- [ragassets](https://github.com/adsonpleal/ragassets) (default): a single Go
+  binary that renders from GET query parameters. Its author runs a free public
+  instance at `https://assets.latam-tools.com.br` (best effort, no SLA).
+- [zrenderer](https://github.com/zhad3/zrenderer): the original D renderer
+  ragassets is ported from, run as a Docker container.
+
+The game works without either: when no renderer is configured the web client
+draws SVG placeholders.
+
+## Quickest way to see real sprites
+
+Point the server at the public ragassets instance in `apps/server/.env`:
+
+```bash
+RENDERER_KIND=ragassets
+RENDERER_URL=https://assets.latam-tools.com.br
+```
+
+Each sprite is fetched once and then served from `ASSET_CACHE_DIR`, so the
+public instance only sees a handful of requests. For anything beyond local
+development, self-host instead of relying on someone else's hobby server.
 
 ## How it fits together
 
@@ -11,11 +32,12 @@ Browser ── GET /assets/render/player/{appearance}/{action} ──► game se
         ── GET /assets/render/monster/{monsterId}/{action} ──►     │
                                                                     │ cache miss
                                                                     ▼
-                                         zrenderer  POST /render (animated PNG)
+                         ragassets GET /image  or  zrenderer POST /render
+                                                (animated PNG)
 ```
 
-- `packages/renderer-client` is the only code that knows the zrenderer API:
-  action indices, request bodies, the HTTP client and the sprite cache.
+- `packages/renderer-client` is the only code that knows the renderer APIs:
+  action indices, request bodies, the two HTTP clients and the sprite cache.
 - The game server renders each distinct sprite once and stores it on disk
   (`ASSET_CACHE_DIR`), keyed by a hash of the full render request.
 - Player sprite URLs use an appearance hash issued by the server in each state
@@ -29,10 +51,19 @@ Sprite ids live in game data: `SpriteDefinition.jobId` (Swordman 1, Poring
 1002, Fabre 1007, Lunatic 1063) and `equipment.viewId` for weapons (Knife 1,
 Sword 2).
 
-## Running zrenderer locally
+## Self-hosting ragassets
 
 You need your own Ragnarok Online client. Its data is copyrighted by Gravity
-and is never committed to this repository.
+and is never committed to this repository. Follow ragassets' README: extract
+the sprite data with its `extract-grf.mjs` (which also handles recent encrypted
+GRFs), `go build` the gateway, and run it with `RESOURCE_DIR` set. Then:
+
+```bash
+RENDERER_KIND=ragassets
+RENDERER_URL=http://localhost:8080
+```
+
+## Running zrenderer locally
 
 1. Extract the files listed in zrenderer's
    [RESOURCES.md](https://github.com/zhad3/zrenderer/blob/main/RESOURCES.md)
@@ -50,6 +81,7 @@ and is never committed to this repository.
 3. Configure the game server (`apps/server/.env` or your shell):
 
    ```bash
+   RENDERER_KIND=zrenderer
    RENDERER_URL=http://localhost:11011
    RENDERER_TOKEN=<token from the logs>
    ```

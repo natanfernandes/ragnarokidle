@@ -1,7 +1,12 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import websocket from '@fastify/websocket';
 import { GAME_SOCKET_PATH } from '@ragidle/protocol';
-import { FileAssetStore, SpriteService, ZRendererClient } from '@ragidle/renderer-client';
+import {
+  FileAssetStore,
+  RagassetsClient,
+  SpriteService,
+  ZRendererClient,
+} from '@ragidle/renderer-client';
 import { AppearanceRegistry } from './assets/appearance';
 import { registerSpriteRoutes } from './assets/sprite-routes';
 import { InMemoryCharacterRepository } from './characters/character-repository';
@@ -20,10 +25,11 @@ export interface AppOptions {
 function createSpriteService(config: AppOptions['config']): SpriteService | null {
   const renderer = config.renderer;
   if (!renderer?.url) return null;
-  return new SpriteService(
-    new ZRendererClient({ baseUrl: renderer.url, accessToken: renderer.accessToken }),
-    new FileAssetStore(renderer.cacheDir),
-  );
+  const client =
+    renderer.kind === 'zrenderer'
+      ? new ZRendererClient({ baseUrl: renderer.url, accessToken: renderer.accessToken })
+      : new RagassetsClient({ baseUrl: renderer.url });
+  return new SpriteService(client, new FileAssetStore(renderer.cacheDir));
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
