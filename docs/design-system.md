@@ -78,6 +78,39 @@ The app's Vite config needs `@tailwindcss/vite`. The package stylesheet loads
 Tailwind, the theme and a `@source` for its own components, so classes used
 inside `@ragidle/ui` are always generated.
 
+## Screen layout: stage + dock
+
+The game screen follows three layers. Layout references and wireframes:
+https://claude.ai/artifact/N6vSoYQ3UAvah4GdX5EHya
+
+1. **Always visible:** the HUD bar (name, level, HP/SP/XP, Zeny, map), the
+   combat stage and the combat log.
+2. **On demand:** management panels in the dock, a `TabWindow` beside the
+   stage. Tabs are grouped by what the player wants to do: Automation (farming,
+   skill and potion rules, loot), Bag, Character (status, equipment). On
+   phones the same tabs become a `BottomNav` and open in a `Sheet`.
+3. **Events:** dialogs for rare moments (offline return), badges for news in
+   a panel (new items in the bag). Panels never open by themselves.
+
+Rules:
+
+- The stage is never hidden. Nothing may cover it for long on any screen size.
+- A new screen is a new dock tab (or a section inside one), not a new column.
+  Add it to `apps/web/src/panels/dock.ts` and give it a shortcut.
+- Shortcuts follow the classic RO client where one exists:
+
+  | Key              | Opens                             |
+  | ---------------- | --------------------------------- |
+  | `Alt+R`          | Automation                        |
+  | `Alt+E`          | Bag                               |
+  | `Alt+A`, `Alt+Q` | Character (status, equipment)     |
+  | `Space`          | Start or stop farming             |
+  | `Esc`            | Closes the sheet or dialog on top |
+
+- The active dock tab is remembered in the browser.
+- Next steps: pop-out tabs as floating RO windows with saved positions, then a
+  HUD layout editor.
+
 ## UX principles
 
 These come from the moodboard and guide new screens:

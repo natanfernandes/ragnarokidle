@@ -1,12 +1,13 @@
 import { gameData } from '@ragidle/game-data';
 import type { CombatConfig, ItemCategory } from '@ragidle/shared';
-import { Button, CheckboxRow, PercentField, SectionLabel, ToggleChip, Window } from '@ragidle/ui';
+import { Button, CheckboxRow, PercentField, SectionLabel, ToggleChip } from '@ragidle/ui';
 import { game } from '../game';
 import { useGameStore } from '../stores/game-store';
 
 const LOOT_CATEGORIES: ItemCategory[] = ['consumable', 'material', 'equipment', 'card'];
 
-export function ConfigPanel() {
+/** Farming controls, skill and potion rules, and the loot filter. */
+export function AutomationPanel() {
   const character = useGameStore((s) => s.character);
   const combat = useGameStore((s) => s.combat);
   if (!character || !combat) return null;
@@ -20,10 +21,12 @@ export function ConfigPanel() {
   const bash = config.skills.find((s) => s.skillId === 'bash');
 
   return (
-    <Window title="Farming">
+    <>
       <div className="flex flex-wrap gap-2">
         {combat.active ? (
-          <Button onClick={game.stopCombat}>Stop</Button>
+          <Button onClick={game.stopCombat} title="Space">
+            Stop
+          </Button>
         ) : (
           Object.values(gameData.maps).map((map) => (
             <Button key={map.id} variant="primary" onClick={() => game.startCombat(map.id)}>
@@ -93,6 +96,6 @@ export function ConfigPanel() {
           </ToggleChip>
         ))}
       </div>
-    </Window>
+    </>
   );
 }
