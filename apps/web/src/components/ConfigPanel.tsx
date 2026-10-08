@@ -1,5 +1,6 @@
 import { gameData } from '@ragidle/game-data';
 import type { CombatConfig, ItemCategory } from '@ragidle/shared';
+import { Button, CheckboxRow, PercentField, SectionLabel, ToggleChip, Window } from '@ragidle/ui';
 import { game } from '../game';
 import { useGameStore } from '../stores/game-store';
 
@@ -19,34 +20,30 @@ export function ConfigPanel() {
   const bash = config.skills.find((s) => s.skillId === 'bash');
 
   return (
-    <section className="window">
-      <h2>Farming</h2>
-      <div className="row">
+    <Window title="Farming">
+      <div className="flex flex-wrap gap-2">
         {combat.active ? (
-          <button onClick={game.stopCombat}>Stop</button>
+          <Button onClick={game.stopCombat}>Stop</Button>
         ) : (
           Object.values(gameData.maps).map((map) => (
-            <button key={map.id} onClick={() => game.startCombat(map.id)}>
+            <Button key={map.id} variant="primary" onClick={() => game.startCombat(map.id)}>
               Farm {map.name}
-            </button>
+            </Button>
           ))
         )}
       </div>
 
-      <h3>Skills</h3>
+      <SectionLabel>Skills</SectionLabel>
       {bash && (
-        <label className="row">
-          <input
-            type="checkbox"
-            checked={bash.enabled}
-            onChange={(e) =>
-              update(
-                (d) => (d.skills.find((s) => s.skillId === 'bash')!.enabled = e.target.checked),
-              )
-            }
-          />
+        <CheckboxRow
+          checked={bash.enabled}
+          onChange={(checked) =>
+            update((d) => (d.skills.find((s) => s.skillId === 'bash')!.enabled = checked))
+          }
+        >
           Bash when SP ≥
-          <PercentInput
+          <PercentField
+            aria-label="Bash minimum SP"
             value={bash.conditions?.minSpPercent ?? 0}
             onChange={(v) =>
               update((d) => {
@@ -55,66 +52,47 @@ export function ConfigPanel() {
               })
             }
           />
-        </label>
+        </CheckboxRow>
       )}
 
-      <h3>Potions</h3>
+      <SectionLabel>Potions</SectionLabel>
       {(['hp', 'sp'] as const).map((kind) => {
         const rule = config.potions[kind];
+        const name = gameData.items[rule.itemId]?.name;
         return (
-          <label key={kind} className="row">
-            <input
-              type="checkbox"
-              checked={rule.enabled}
-              onChange={(e) => update((d) => (d.potions[kind].enabled = e.target.checked))}
-            />
-            {gameData.items[rule.itemId]?.name} when {kind.toUpperCase()} &lt;
-            <PercentInput
+          <CheckboxRow
+            key={kind}
+            checked={rule.enabled}
+            onChange={(checked) => update((d) => (d.potions[kind].enabled = checked))}
+          >
+            {name} when {kind.toUpperCase()} &lt;
+            <PercentField
+              aria-label={`${name} threshold`}
               value={rule.belowPercent}
               onChange={(v) => update((d) => (d.potions[kind].belowPercent = v))}
             />
-          </label>
+          </CheckboxRow>
         );
       })}
 
-      <h3>Loot</h3>
-      <div className="row wrap">
+      <SectionLabel>Loot</SectionLabel>
+      <div className="flex flex-wrap gap-1.5">
         {LOOT_CATEGORIES.map((category) => (
-          <label key={category} className="chip">
-            <input
-              type="checkbox"
-              checked={config.loot.pickupCategories.includes(category)}
-              onChange={(e) =>
-                update((d) => {
-                  d.loot.pickupCategories = e.target.checked
-                    ? [...d.loot.pickupCategories, category]
-                    : d.loot.pickupCategories.filter((c) => c !== category);
-                })
-              }
-            />
+          <ToggleChip
+            key={category}
+            checked={config.loot.pickupCategories.includes(category)}
+            onChange={(checked) =>
+              update((d) => {
+                d.loot.pickupCategories = checked
+                  ? [...d.loot.pickupCategories, category]
+                  : d.loot.pickupCategories.filter((c) => c !== category);
+              })
+            }
+          >
             {category}
-          </label>
+          </ToggleChip>
         ))}
       </div>
-    </section>
-  );
-}
-
-function PercentInput(props: { value: number; onChange: (value: number) => void }) {
-  return (
-    <span className="percent">
-      <input
-        type="number"
-        min={0}
-        max={100}
-        step={5}
-        value={props.value}
-        onChange={(e) => {
-          const value = Number(e.target.value);
-          if (Number.isFinite(value) && value >= 0 && value <= 100) props.onChange(value);
-        }}
-      />
-      %
-    </span>
+    </Window>
   );
 }

@@ -47,6 +47,8 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
   animation.
 - `useGameStore` (Zustand) holds presentation state only: values copied from
   snapshots or replayed from events. It never computes outcomes.
+- Panels are built from the `@ragidle/ui` design system. See
+  [design-system.md](design-system.md).
 - Sprites come from the renderer service through the game server, with SVG
   placeholders as a fallback. See [renderer.md](renderer.md).
 
