@@ -225,11 +225,12 @@ button:hover {
 /* Combat stage */
 .stage {
   position: relative;
-  height: 300px;
+  /* Headroom so actors on the northern rows still fit. */
+  padding: 130px 12px 16px;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--window-border);
-  background: linear-gradient(#9fd3f7 0%, #c9ecff 45%, #7cbf5a 45%, #5e9e42 100%);
+  background: linear-gradient(#9fd3f7, #c9ecff 90px, #6fae4f 90px, #5e9e42);
 }
 .stage-title {
   position: absolute;
@@ -239,25 +240,32 @@ button:hover {
   color: #1d3557;
   text-shadow: 0 1px 0 #fff;
 }
-.stage-ground {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: end;
-  padding: 0 12% 36px;
+/* The field: one cell per background tile, x east and y north. */
+.field {
+  position: relative;
+  width: 100%;
+  border-radius: 4px;
+  background-color: #7cbf5a;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.07) 1px, transparent 1px);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.15);
 }
-.stage-slot {
+/* An actor's feet sit on its cell; the nameplate floats above. */
+.stage-actor {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 200px;
-  justify-content: flex-end;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
 }
 .stage-hint {
+  position: absolute;
+  inset: 60px 0 auto;
+  text-align: center;
   color: #fff;
   text-shadow: 0 1px 2px #000;
-  margin-bottom: 60px;
 }
 .stage-banner {
   position: absolute;
@@ -282,8 +290,8 @@ button:hover {
 
 .actor {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 84px;
+  height: 84px;
 }
 .actor.is-dead .sprite {
   opacity: 0.25;
@@ -318,6 +326,9 @@ button:hover {
 }
 .actor-monster .anim-attack {
   animation: lunge-left 300ms ease-out;
+}
+.anim-walk {
+  animation: bob 320ms ease-in-out infinite;
 }
 .anim-hit {
   animation: hit 250ms ease-out;
@@ -467,6 +478,7 @@ button:hover {
 
 /* Rendered sprites animate themselves; keep only the hit flash and death fade. */
 .sprite.is-rendered.anim-idle,
+.sprite.is-rendered.anim-walk,
 .sprite.is-rendered.anim-spawn,
 .sprite.is-rendered.anim-attack,
 .sprite.is-rendered.anim-skill {

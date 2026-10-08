@@ -17,6 +17,7 @@ export function describeEvent(event: CombatEvent): { text: string; kind: LogKind
     case 'monster_spawn':
       return { text: `A ${monsterName(event.monsterId)} appears.`, kind: 'system' };
     case 'attack':
+    case 'move':
     case 'regen':
       return null;
     case 'skill_cast':

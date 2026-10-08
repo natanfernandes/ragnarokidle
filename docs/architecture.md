@@ -18,6 +18,26 @@ Key properties, all covered by tests:
 - **Pure.** ESLint forbids `Math.random`, `Date.now`, timers and `process`
   inside the engine.
 
+### Movement
+
+Fields are grids, as in Ragnarok Online: x grows east, y grows north, and
+distance is counted in cells with diagonals as one (`packages/shared/src/position.ts`).
+Monsters appear a few cells from the player (`SPAWN_DISTANCE`), drifting back
+towards the middle of the field. Then one side walks to the other:
+
+- Passive monsters wait; the player walks until within its `attackRange`.
+- Aggressive monsters (`aggroRange` set) charge a player they can see and
+  strike on arrival.
+- A side still out of range after that (a melee monster facing a ranged
+  attacker) closes in too.
+
+A walk is a straight line and a single `move` event with `from`, `to` and
+`arriveAt`; the engine never steps cell by cell. Its cost is the same for any
+distance, so offline simulation stays cheap. Diagonal steps cost 1.4 cells of
+`moveSpeedMs`. Open fields need no pathfinding; when maps get obstacles, a
+small walkable grid with A* only for blocked straight lines can slot into
+`approachCell`.
+
 `simulateCombat(input)` wraps this for one-shot runs (tests, balance tool).
 
 Formulas live in `formulas.ts` and are placeholders to be tuned with
@@ -47,6 +67,10 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
   animation.
 - `useGameStore` (Zustand) holds presentation state only: values copied from
   snapshots or replayed from events. It never computes outcomes.
+- `CombatStage` draws the field in a three-quarter view. Actors are placed by
+  cell, in percentages of the field, and a `move` becomes one CSS transition
+  over its duration, with the walk animation and the direction from the
+  heading. Blows turn both sides to face each other.
 - Sprites come from the renderer service through the game server, with SVG
   placeholders as a fallback. See [renderer.md](renderer.md).
 

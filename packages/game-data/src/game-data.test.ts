@@ -22,6 +22,13 @@ describe('game data integrity', () => {
     }
   });
 
+  it('places spawn points inside their maps', () => {
+    for (const map of Object.values(gameData.maps)) {
+      const { x, y } = map.spawnPoint;
+      expect(x >= 0 && x < map.size.width && y >= 0 && y < map.size.height, map.id).toBe(true);
+    }
+  });
+
   it('references only existing skills in classes', () => {
     for (const cls of Object.values(gameData.classes)) {
       for (const skillId of cls.skills) expect(gameData.skills[skillId]).toBeDefined();

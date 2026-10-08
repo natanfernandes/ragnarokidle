@@ -2,15 +2,22 @@ import { SPRITE_ASSET_PATH } from '@ragidle/protocol';
 import { apngDurationMs } from './apng';
 
 /** Sprite actions served by the game server (see @ragidle/renderer-client). */
-export type RenderedAction = 'idle' | 'attack' | 'hit' | 'die';
+export type RenderedAction = 'idle' | 'walk' | 'attack' | 'hit' | 'die';
 
-export const RENDERED_ACTIONS: RenderedAction[] = ['idle', 'attack', 'hit', 'die'];
+export const RENDERED_ACTIONS: RenderedAction[] = ['idle', 'walk', 'attack', 'hit', 'die'];
 
-export const playerSpriteUrl = (appearance: string, action: RenderedAction) =>
-  `${SPRITE_ASSET_PATH}/player/${encodeURIComponent(appearance)}/${action}`;
+/** Builds the URL of an actor's sprite for an action and RO direction (0-7). */
+export type SpriteUrl = (action: RenderedAction, direction: number) => string;
 
-export const monsterSpriteUrl = (monsterId: string, action: RenderedAction) =>
-  `${SPRITE_ASSET_PATH}/monster/${encodeURIComponent(monsterId)}/${action}`;
+export const playerSpriteUrl =
+  (appearance: string): SpriteUrl =>
+  (action, direction) =>
+    `${SPRITE_ASSET_PATH}/player/${encodeURIComponent(appearance)}/${action}/${direction}`;
+
+export const monsterSpriteUrl =
+  (monsterId: string): SpriteUrl =>
+  (action, direction) =>
+    `${SPRITE_ASSET_PATH}/monster/${encodeURIComponent(monsterId)}/${action}/${direction}`;
 
 export interface LoadedSprite {
   blob: Blob;
