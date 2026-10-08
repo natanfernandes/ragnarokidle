@@ -27,7 +27,8 @@ const swordman: PlayerAppearance = {
   bodyPalette: -1,
   weaponViewId: 1,
   shieldViewId: 0,
-  headgear: [],
+  garmentViewId: 0,
+  headgear: [0, 0, 0],
 };
 
 describe('action indices', () => {
@@ -50,6 +51,12 @@ describe('render requests', () => {
       weapon: 1,
       canvas: '200x200+100+170',
     });
+  });
+
+  it('sends headgear in upper, middle, lower order without trailing empty slots', () => {
+    const withHeadgear = { ...swordman, headgear: [0, 125, 0] as PlayerAppearance['headgear'] };
+    expect(playerRenderRequest(swordman, 'idle', 0).headgear).toEqual([]);
+    expect(playerRenderRequest(withHeadgear, 'idle', 0).headgear).toEqual([0, 125]);
   });
 
   it('builds a monster request', () => {

@@ -1,23 +1,27 @@
 import type { PlayerAppearance } from '@ragidle/renderer-client';
 import { hashOf } from '@ragidle/renderer-client';
 import { type GameData, gameData } from '@ragidle/game-data';
-import type { CharacterState } from '@ragidle/shared';
+import type { CharacterState, EquipmentSlot } from '@ragidle/shared';
 
+/** Everything that changes how the character is drawn: class, look and visible equipment. */
 export function appearanceOf(
   character: CharacterState,
   data: GameData = gameData,
 ): PlayerAppearance {
-  const viewId = (itemId: string | undefined) =>
-    (itemId && data.items[itemId]?.equipment?.viewId) || 0;
+  const view = (slot: EquipmentSlot) => {
+    const itemId = character.equipment[slot];
+    return (itemId && data.items[itemId]?.equipment?.viewId) || 0;
+  };
   return {
     jobId: data.classes[character.classId]?.sprite.jobId ?? 0,
     gender: character.appearance.gender,
-    head: character.appearance.head,
-    headPalette: character.appearance.headPalette,
-    bodyPalette: character.appearance.bodyPalette,
-    weaponViewId: viewId(character.equipment.weapon),
-    shieldViewId: 0,
-    headgear: [],
+    head: character.appearance.hairStyle,
+    headPalette: character.appearance.hairColor,
+    bodyPalette: character.appearance.clothesColor,
+    weaponViewId: view('weapon'),
+    shieldViewId: view('shield'),
+    garmentViewId: view('garment'),
+    headgear: [view('headTop'), view('headMid'), view('headLow')],
   };
 }
 

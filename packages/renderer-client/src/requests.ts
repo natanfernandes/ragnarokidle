@@ -19,7 +19,10 @@ export interface RenderRequest {
   outputFormat?: 0 | 1;
 }
 
-/** What a player looks like; independent of class stats and equipment bonuses. */
+/**
+ * Everything that changes how a player is drawn, in renderer terms. View ids
+ * are 0 when the slot is empty.
+ */
 export interface PlayerAppearance {
   jobId: number;
   gender: 'male' | 'female';
@@ -28,7 +31,16 @@ export interface PlayerAppearance {
   bodyPalette: number;
   weaponViewId: number;
   shieldViewId: number;
-  headgear: number[];
+  garmentViewId: number;
+  /** Accessory view ids in upper, middle, lower order. */
+  headgear: [top: number, mid: number, low: number];
+}
+
+/** Renderers take up to three headgear ids; trailing empty slots are dropped. */
+function headgearIds(headgear: PlayerAppearance['headgear']): number[] {
+  const ids = [...headgear];
+  while (ids.length > 0 && ids[ids.length - 1] === 0) ids.pop();
+  return ids;
 }
 
 /**
@@ -63,7 +75,8 @@ export function playerRenderRequest(
     bodyPalette: appearance.bodyPalette,
     weapon: appearance.weaponViewId,
     shield: appearance.shieldViewId,
-    headgear: appearance.headgear,
+    garment: appearance.garmentViewId,
+    headgear: headgearIds(appearance.headgear),
     headdir: 0,
   };
 }

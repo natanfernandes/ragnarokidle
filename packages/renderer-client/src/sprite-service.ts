@@ -17,8 +17,13 @@ export class SpriteService {
     private readonly store: AssetStore,
   ) {}
 
+  /** Cache key of a request, without rendering it. */
+  keyOf(request: RenderRequest): string {
+    return hashOf(request);
+  }
+
   async get(request: RenderRequest): Promise<{ key: string; bytes: Uint8Array }> {
-    const key = hashOf(request);
+    const key = this.keyOf(request);
     const cached = await this.store.get(key);
     if (cached) return { key, bytes: cached };
 

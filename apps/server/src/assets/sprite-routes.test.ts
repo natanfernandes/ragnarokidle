@@ -68,6 +68,27 @@ describe('sprite routes', () => {
     expect(renderer.render.mock.calls[0]![0]).toMatchObject({ job: ['1'], weapon: 1, action: 47 });
   });
 
+  it('lets browsers cache player sprites forever and revalidate monster sprites', async () => {
+    const { app, renderer } = await start(async () => PNG);
+    const { assets } = await snapshot(app);
+    const player = await app.inject({
+      url: `/assets/render/player/${assets.playerAppearance}/idle`,
+    });
+    expect(player.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+
+    const monster = await app.inject({ url: '/assets/render/monster/poring/idle' });
+    expect(monster.headers['cache-control']).toBe('public, max-age=86400');
+    const etag = monster.headers.etag as string;
+
+    const revalidated = await app.inject({
+      url: '/assets/render/monster/poring/idle',
+      headers: { 'if-none-match': etag },
+    });
+    expect(revalidated.statusCode).toBe(304);
+    expect(revalidated.body).toBe('');
+    expect(renderer.render).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects unknown appearances, monsters and actions', async () => {
     const { app, renderer } = await start(async () => PNG);
     for (const url of [

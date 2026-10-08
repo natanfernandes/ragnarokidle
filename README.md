@@ -17,9 +17,9 @@ pnpm dev          # server on :3001, web on http://localhost:5173
 
 Open http://localhost:5173 and click **Farm Poring Meadow**.
 
-Sprites are placeholders until you connect a sprite renderer. The quickest
-way is the public ragassets instance: copy `apps/server/.env.example` to
-`apps/server/.env`. See [docs/renderer.md](docs/renderer.md).
+In development, sprites come from the public ragassets instance. See
+[docs/renderer.md](docs/renderer.md) to self-host a renderer or use
+placeholders.
 
 ## Scripts
 

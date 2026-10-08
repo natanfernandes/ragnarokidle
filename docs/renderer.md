@@ -12,18 +12,43 @@ the same action indices and output:
 The game works without either: when no renderer is configured the web client
 draws SVG placeholders.
 
-## Quickest way to see real sprites
+## Development default
 
-Point the server at the public ragassets instance in `apps/server/.env`:
-
-```bash
-RENDERER_KIND=ragassets
-RENDERER_URL=https://assets.latam-tools.com.br
-```
+Outside production (`NODE_ENV !== 'production'`), the server uses the public
+ragassets instance unless `RENDERER_URL` says otherwise, so `pnpm dev` shows
+real sprites with no setup. Set `RENDERER_URL=` (empty) to use placeholders.
 
 Each sprite is fetched once and then served from `ASSET_CACHE_DIR`, so the
-public instance only sees a handful of requests. For anything beyond local
-development, self-host instead of relying on someone else's hobby server.
+public instance only sees a handful of requests. Production has no default:
+self-host a renderer instead of relying on someone else's hobby server.
+
+## What decides how the player looks
+
+`appearanceOf` (apps/server/src/assets/appearance.ts) turns a character into
+the renderer's terms. Any change to these gives a new appearance hash, so the
+client fetches the new sprites as soon as the next snapshot arrives:
+
+| Character data                      | Renderer parameter                |
+| ----------------------------------- | --------------------------------- |
+| class `sprite.jobId`                | `job`                             |
+| `appearance.gender`                 | `gender`                          |
+| `appearance.hairStyle`              | `head`                            |
+| `appearance.hairColor`              | `headPalette`                     |
+| `appearance.clothesColor`           | `bodyPalette`                     |
+| `equipment.weapon` item `viewId`    | `weapon`                          |
+| `equipment.shield` item `viewId`    | `shield`                          |
+| `equipment.garment` item `viewId`   | `garment`                         |
+| `equipment.headTop/headMid/headLow` | `headgear` (upper, middle, lower) |
+
+Armor, footgear and accessories are not drawn. Monsters use their
+`sprite.jobId`.
+
+## Caching
+
+- Server: each distinct render is stored once in `ASSET_CACHE_DIR`.
+- Browser: player sprite URLs contain the appearance hash, so they are served
+  as `immutable` for a year. Monster URLs are by id, cached for a day and
+  revalidated with `ETag` / `304`. Within a page, each sprite is fetched once.
 
 ## How it fits together
 

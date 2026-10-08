@@ -47,5 +47,19 @@ export const items: Record<string, ItemDefinition> = {
     sellPrice: 5,
     equipment: { slot: 'armor', defense: 1 },
   },
+  guard: {
+    id: 'guard',
+    name: 'Guard',
+    category: 'equipment',
+    sellPrice: 250,
+    equipment: { slot: 'shield', viewId: 1, defense: 1 },
+  },
+  flower: {
+    id: 'flower',
+    name: 'Flower',
+    category: 'equipment',
+    sellPrice: 250,
+    equipment: { slot: 'headTop', viewId: 4 },
+  },
   poring_card: { id: 'poring_card', name: 'Poring Card', category: 'card', sellPrice: 10 },
 };

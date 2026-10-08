@@ -12,14 +12,20 @@ export interface ServerConfig {
   };
 }
 
+/** Free public ragassets instance (best effort, no SLA); the development default. */
+export const PUBLIC_RAGASSETS_URL = 'https://assets.latam-tools.com.br';
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
+  const production = env.NODE_ENV === 'production';
+  // Unset means "use the default"; an empty value turns rendering off.
+  const rendererUrl = env.RENDERER_URL ?? (production ? '' : PUBLIC_RAGASSETS_URL);
   return {
     port: Number(env.PORT ?? 3001),
     host: env.HOST ?? '0.0.0.0',
     maxOfflineMs: Number(env.MAX_OFFLINE_HOURS ?? 24) * 3_600_000,
     renderer: {
       kind: env.RENDERER_KIND === 'zrenderer' ? 'zrenderer' : 'ragassets',
-      url: env.RENDERER_URL || null,
+      url: rendererUrl || null,
       accessToken: env.RENDERER_TOKEN ?? '',
       cacheDir: env.ASSET_CACHE_DIR ?? '.cache/sprites',
     },
