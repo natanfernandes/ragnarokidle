@@ -70,7 +70,10 @@ Browser ── GET /assets/render/player/{appearance}/{action} ──► game se
 - Every sprite is drawn on the same 200x200 canvas with the feet at (100, 170),
   so switching between idle, attack, hit and die never shifts the sprite.
 - The client fetches each sprite once and restarts the animation on every
-  play. Attack and hit return to idle after a short time; die stays.
+  play, decoding the next image before swapping it in. Attack and hit return
+  to idle after one loop of the APNG (read from its frame delays); die stays.
+- Players attack with motion 88 when armed (it draws the weapon layer) and 80
+  when unarmed.
 
 Sprite ids live in game data: `SpriteDefinition.jobId` (Swordman 1, Poring
 1002, Fabre 1007, Lunatic 1063) and `equipment.viewId` for weapons (Knife 1,
