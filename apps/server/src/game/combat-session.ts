@@ -11,7 +11,8 @@ import {
 import { gameData } from '@ragidle/game-data';
 import type { CombatSnapshot, OfflineRewards, ServerMessage } from '@ragidle/protocol';
 import type { CharacterState, CombatConfig, CombatEvent, DerivedStats } from '@ragidle/shared';
-import type { CharacterRepository } from '../characters/character-repository';
+import type { CharacterRepository, StoredCharacter } from '../characters/character-repository';
+import { SaveScheduler } from './save-scheduler';
 
 /** Gaps shorter than this are streamed as live events instead of an offline summary. */
 export const OFFLINE_THRESHOLD_MS = 10_000;
@@ -27,11 +28,16 @@ export class GameRuleError extends Error {
   }
 }
 
+/** Routine progress is saved at most this often; see SaveScheduler. */
+export const SAVE_INTERVAL_MS = 5_000;
+
 export interface CombatSessionDeps {
   repository: CharacterRepository;
   clock: () => number;
   maxOfflineMs: number;
   seed?: () => number;
+  saveIntervalMs?: number;
+  onSaveError?: (error: unknown) => void;
 }
 
 /**
@@ -40,14 +46,24 @@ export interface CombatSessionDeps {
  * watching, and on reconnect the elapsed time is simulated in one go.
  */
 export class CombatSession {
-  private combat: CombatState | null = null;
+  private character: CharacterState;
+  private combat: CombatState | null;
   private timer: NodeJS.Timeout | null = null;
   private readonly listeners = new Set<SessionListener>();
+  private readonly saves: SaveScheduler;
 
   constructor(
-    private character: CharacterState,
+    stored: StoredCharacter,
     private readonly deps: CombatSessionDeps,
-  ) {}
+  ) {
+    this.character = stored.character;
+    this.combat = stored.combat;
+    this.saves = new SaveScheduler(
+      () => deps.repository.save(this.stored()),
+      deps.saveIntervalMs ?? SAVE_INTERVAL_MS,
+      deps.onSaveError ?? (() => {}),
+    );
+  }
 
   get active(): boolean {
     return this.combat !== null;
@@ -63,7 +79,10 @@ export class CombatSession {
 
   detach(listener: SessionListener): void {
     this.listeners.delete(listener);
-    if (this.listeners.size === 0) this.clearTimer();
+    if (this.listeners.size === 0) {
+      this.clearTimer();
+      void this.saves.flush();
+    }
   }
 
   start(mapId: string): void {
@@ -75,7 +94,7 @@ export class CombatSession {
       startAt: this.deps.clock(),
       seed: this.deps.seed?.() ?? randomInt(2 ** 31),
     });
-    this.persist();
+    this.persist({ immediate: true });
     this.tick();
   }
 
@@ -84,7 +103,7 @@ export class CombatSession {
     this.tick();
     this.clearTimer();
     this.combat = null;
-    this.persist();
+    this.persist({ immediate: true });
   }
 
   updateConfig(config: CombatConfig): void {
@@ -95,7 +114,7 @@ export class CombatSession {
     } else {
       this.character = { ...this.character, combatConfig: structuredClone(config) };
     }
-    this.persist();
+    this.persist({ immediate: true });
   }
 
   snapshot(): { character: CharacterState; derived: DerivedStats; combat: CombatSnapshot } {
@@ -120,9 +139,11 @@ export class CombatSession {
     };
   }
 
-  dispose(): void {
+  /** Stops the session and resolves once its state is saved. */
+  dispose(): Promise<void> {
     this.clearTimer();
     this.listeners.clear();
+    return this.saves.flush();
   }
 
   private currentCharacter(): CharacterState {
@@ -163,7 +184,7 @@ export class CombatSession {
             seed: state.rngState,
           })
         : state;
-    this.persist();
+    this.persist({ immediate: true });
     return rewards;
   }
 
@@ -187,9 +208,13 @@ export class CombatSession {
     for (const listener of this.listeners) listener(message);
   }
 
-  private persist(): void {
+  private persist(options?: { immediate?: boolean }): void {
     this.character = this.currentCharacter();
-    this.deps.repository.save(this.character);
+    this.saves.request(options);
+  }
+
+  private stored(): StoredCharacter {
+    return structuredClone({ character: this.currentCharacter(), combat: this.combat });
   }
 }
 

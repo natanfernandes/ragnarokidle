@@ -15,6 +15,9 @@ export class GameConnection {
   private session: CombatSession | null = null;
   private readonly limiter: RateLimiter;
   private strikes = 0;
+  /** Messages are handled one at a time, in order, even while one awaits storage. */
+  private queue: Promise<void> = Promise.resolve();
+  private closed = false;
   private readonly listener: SessionListener = (message) => this.send(message);
 
   constructor(
@@ -26,7 +29,10 @@ export class GameConnection {
   ) {
     this.limiter = new RateLimiter(20, 10, clock());
     socket.on('message', (data, isBinary) => this.onMessage(data.toString(), isBinary));
-    socket.on('close', () => this.session?.detach(this.listener));
+    socket.on('close', () => {
+      this.closed = true;
+      this.session?.detach(this.listener);
+    });
   }
 
   private onMessage(raw: string, isBinary: boolean): void {
@@ -44,18 +50,21 @@ export class GameConnection {
     const parsed = parseClientMessage(raw);
     if (!parsed.ok) return this.error('invalid_message', parsed.error);
 
-    try {
-      this.handle(parsed.message);
-    } catch (error) {
-      if (error instanceof GameRuleError) {
-        return this.error(error.code, error.message, parsed.message.requestId);
+    const { message } = parsed;
+    this.queue = this.queue.then(async () => {
+      try {
+        await this.handle(message);
+      } catch (error) {
+        if (error instanceof GameRuleError) {
+          return this.error(error.code, error.message, message.requestId);
+        }
+        this.log.error({ err: error }, 'Failed to handle client message');
+        this.error('invalid_state', 'Internal error', message.requestId);
       }
-      this.log.error({ err: error }, 'Failed to handle client message');
-      this.error('invalid_state', 'Internal error', parsed.message.requestId);
-    }
+    });
   }
 
-  private handle(message: ClientMessage): void {
+  private async handle(message: ClientMessage): Promise<void> {
     if (message.type === 'authenticate')
       return this.onAuthenticate(message.token, message.requestId);
 
@@ -78,19 +87,23 @@ export class GameConnection {
     this.sendSnapshot(message.requestId);
   }
 
-  private onAuthenticate(token: string, requestId?: string): void {
+  private async onAuthenticate(token: string, requestId?: string): Promise<void> {
     const player = authenticate(token);
     if (!player) return this.error('unauthenticated', 'Invalid token', requestId);
 
     this.session?.detach(this.listener);
-    this.session = this.sessions.forPlayer(player);
+    this.session = null;
+    const session = await this.sessions.forPlayer(player);
+    // The socket may have closed while the character was loading.
+    if (this.closed) return;
+    this.session = session;
     this.send({
       type: 'authenticated',
       characterId: player.characterId,
       serverTime: this.clock(),
       requestId,
     });
-    const rewards = this.session.attach(this.listener);
+    const rewards = session.attach(this.listener);
     if (rewards) this.send({ type: 'offline.rewards', rewards });
     this.sendSnapshot();
   }

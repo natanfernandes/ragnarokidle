@@ -8,12 +8,17 @@ discrete events, and the browser only presents them.
 
 ## Quick start
 
-Requires Node 22+ and pnpm 10.
+Requires Node 22+, pnpm 10 and Docker (Docker Desktop on Windows and macOS).
 
 ```bash
 pnpm install
-pnpm dev          # server on :3001, web on http://localhost:5173
+pnpm db:up                                   # PostgreSQL in Docker, see docker-compose.yml
+cp apps/server/.env.example apps/server/.env # on Windows: copy apps\server\.env.example apps\server\.env
+pnpm dev                                     # server on :3001, web on http://localhost:5173
 ```
+
+The server applies database migrations on startup. Without `DATABASE_URL`
+it still runs, but keeps characters in memory and forgets them on restart.
 
 Open http://localhost:5173 and click **Farm Poring Meadow**.
 
@@ -26,6 +31,8 @@ placeholders.
 | Command                       | What it does                                    |
 | ----------------------------- | ----------------------------------------------- |
 | `pnpm dev`                    | Runs the game server and the web app            |
+| `pnpm db:up` / `pnpm db:down` | Starts / stops PostgreSQL in Docker             |
+| `pnpm db:generate`            | Writes a migration after a schema change        |
 | `pnpm test`                   | Runs all unit, simulation and integration tests |
 | `pnpm typecheck`              | Type-checks every package                       |
 | `pnpm lint` / `pnpm format`   | ESLint / Prettier                               |
