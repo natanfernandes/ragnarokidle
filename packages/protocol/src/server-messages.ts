@@ -1,15 +1,30 @@
-import type { CharacterState, CombatEvent, DerivedStats } from '@ragidle/shared';
+import type {
+  CharacterState,
+  CombatEvent,
+  DerivedStats,
+  GridPosition,
+  Movement,
+} from '@ragidle/shared';
+
+/** Where an actor stands, plus its latest walk, which may still be under way. */
+export interface ActorPlacement {
+  position: GridPosition;
+  movement: Movement | null;
+}
 
 export interface MonsterSnapshot {
   instanceId: string;
   monsterId: string;
   hp: number;
   maxHp: number;
+  placement: ActorPlacement;
 }
 
 export interface CombatSnapshot {
   active: boolean;
   mapId: string | null;
+  /** Null while not farming. */
+  player: ActorPlacement | null;
   monster: MonsterSnapshot | null;
   /** Epoch ms when the player respawns, if dead. */
   respawnAt: number | null;

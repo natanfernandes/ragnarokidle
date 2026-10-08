@@ -45,12 +45,12 @@ async function snapshot(instance: FastifyInstance) {
 describe('sprite routes', () => {
   it('renders a monster sprite once and serves it from cache afterwards', async () => {
     const { app, renderer } = await start(async () => PNG);
-    const first = await app.inject({ url: '/assets/render/monster/poring/idle' });
+    const first = await app.inject({ url: '/assets/render/monster/poring/idle/1' });
     expect(first.statusCode).toBe(200);
     expect(first.headers['content-type']).toBe('image/png');
     expect(new Uint8Array(first.rawPayload)).toEqual(PNG);
 
-    await app.inject({ url: '/assets/render/monster/poring/idle' });
+    await app.inject({ url: '/assets/render/monster/poring/idle/1' });
     expect(renderer.render).toHaveBeenCalledTimes(1);
     expect(renderer.render.mock.calls[0]![0]).toMatchObject({ job: ['1002'], action: 1 });
   });
@@ -61,10 +61,10 @@ describe('sprite routes', () => {
     expect(assets.rendererEnabled).toBe(true);
 
     const response = await app.inject({
-      url: `/assets/render/player/${assets.playerAppearance}/attack`,
+      url: `/assets/render/player/${assets.playerAppearance}/attack/7`,
     });
     expect(response.statusCode).toBe(200);
-    // Swordman (job 1) holding a Knife (dagger view 1), attack (armed motion) facing south-east.
+    // Swordman (job 1) holding a Knife (dagger view 1), attack (armed motion) facing south-east (7).
     expect(renderer.render.mock.calls[0]![0]).toMatchObject({ job: ['1'], weapon: 1, action: 95 });
   });
 
@@ -72,16 +72,16 @@ describe('sprite routes', () => {
     const { app, renderer } = await start(async () => PNG);
     const { assets } = await snapshot(app);
     const player = await app.inject({
-      url: `/assets/render/player/${assets.playerAppearance}/idle`,
+      url: `/assets/render/player/${assets.playerAppearance}/idle/7`,
     });
     expect(player.headers['cache-control']).toBe('public, max-age=31536000, immutable');
 
-    const monster = await app.inject({ url: '/assets/render/monster/poring/idle' });
+    const monster = await app.inject({ url: '/assets/render/monster/poring/idle/1' });
     expect(monster.headers['cache-control']).toBe('public, max-age=86400');
     const etag = monster.headers.etag as string;
 
     const revalidated = await app.inject({
-      url: '/assets/render/monster/poring/idle',
+      url: '/assets/render/monster/poring/idle/1',
       headers: { 'if-none-match': etag },
     });
     expect(revalidated.statusCode).toBe(304);
@@ -92,9 +92,11 @@ describe('sprite routes', () => {
   it('rejects unknown appearances, monsters and actions', async () => {
     const { app, renderer } = await start(async () => PNG);
     for (const url of [
-      '/assets/render/player/not-issued/idle',
-      '/assets/render/monster/baphomet/idle',
-      '/assets/render/monster/poring/dance',
+      '/assets/render/player/not-issued/idle/0',
+      '/assets/render/monster/baphomet/idle/0',
+      '/assets/render/monster/poring/idle/8',
+      '/assets/render/monster/poring/idle',
+      '/assets/render/monster/poring/dance/0',
     ]) {
       expect((await app.inject({ url })).statusCode, url).toBe(404);
     }
@@ -105,13 +107,17 @@ describe('sprite routes', () => {
     const { app } = await start(async () => {
       throw new RendererError('down');
     });
-    expect((await app.inject({ url: '/assets/render/monster/poring/idle' })).statusCode).toBe(502);
+    expect((await app.inject({ url: '/assets/render/monster/poring/idle/1' })).statusCode).toBe(
+      502,
+    );
   });
 
   it('returns 404 and tells clients to use placeholders when no renderer is configured', async () => {
     app = await buildApp({ config: { maxOfflineMs: 3_600_000 } });
     await app.ready();
-    expect((await app.inject({ url: '/assets/render/monster/poring/idle' })).statusCode).toBe(404);
+    expect((await app.inject({ url: '/assets/render/monster/poring/idle/1' })).statusCode).toBe(
+      404,
+    );
     expect((await snapshot(app)).assets.rendererEnabled).toBe(false);
   });
 });

@@ -3,6 +3,8 @@
  * `timestamp` is simulation time in epoch milliseconds.
  */
 
+import type { GridPosition } from './position';
+
 export const PLAYER_ACTOR_ID = 'player';
 
 interface BaseEvent {
@@ -15,6 +17,16 @@ export interface MonsterSpawnEvent extends BaseEvent {
   monsterId: string;
   hp: number;
   maxHp: number;
+  position: GridPosition;
+}
+
+/** An actor starts walking in a straight line; `timestamp` is when it sets off. */
+export interface MoveEvent extends BaseEvent {
+  type: 'move';
+  actorId: string;
+  from: GridPosition;
+  to: GridPosition;
+  arriveAt: number;
 }
 
 export interface AttackEvent extends BaseEvent {
@@ -83,6 +95,7 @@ export interface PlayerRespawnEvent extends BaseEvent {
   type: 'player_respawn';
   hp: number;
   sp: number;
+  position: GridPosition;
 }
 
 export interface LootEvent extends BaseEvent {
@@ -115,6 +128,7 @@ export interface LevelUpEvent extends BaseEvent {
 
 export type CombatEvent =
   | MonsterSpawnEvent
+  | MoveEvent
   | AttackEvent
   | SkillCastEvent
   | DamageEvent
