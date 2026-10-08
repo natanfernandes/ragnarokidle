@@ -9,6 +9,8 @@ export const swordman: ClassDefinition = {
   spBase: 12,
   spPerLevel: 3,
   baseAttackIntervalMs: 1400,
+  moveSpeedMs: 150,
+  attackRange: 1,
   startingStats: { str: 9, agi: 5, vit: 7, int: 1, dex: 5, luk: 3 },
   skills: ['bash'],
   sprite: { jobId: 1, placeholder: { shape: 'humanoid', color: '#3b6fd8' } },

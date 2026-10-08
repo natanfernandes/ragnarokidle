@@ -10,6 +10,8 @@ export const poring: MonsterDefinition = {
   hit: 7,
   flee: 2,
   attackIntervalMs: 1800,
+  moveSpeedMs: 400,
+  attackRange: 1,
   experience: 10,
   zeny: { min: 1, max: 3 },
   drops: [
@@ -31,6 +33,8 @@ export const fabre: MonsterDefinition = {
   hit: 9,
   flee: 4,
   attackIntervalMs: 1700,
+  moveSpeedMs: 400,
+  attackRange: 1,
   experience: 14,
   zeny: { min: 2, max: 4 },
   drops: [
@@ -51,6 +55,8 @@ export const lunatic: MonsterDefinition = {
   hit: 12,
   flee: 8,
   attackIntervalMs: 1500,
+  moveSpeedMs: 200,
+  attackRange: 1,
   experience: 18,
   zeny: { min: 3, max: 6 },
   drops: [
