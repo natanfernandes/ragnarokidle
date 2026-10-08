@@ -39,7 +39,7 @@ pnpm simulate --map prontera_field --duration 1h --runs 100 --seed 1
 
 ```text
 apps/
-  web/             React + Vite + Zustand client (presentation only)
+  web/             React + Vite + Zustand + Tailwind client (presentation only)
   server/          Fastify + WebSocket game server
 packages/
   shared/          Domain types: stats, content definitions, combat events
@@ -47,8 +47,9 @@ packages/
   combat-engine/   Pure deterministic simulation (seeded RNG, no I/O)
   protocol/        WebSocket messages and zod validation
   renderer-client/ ragassets/zrenderer clients and sprite cache
+  ui/              Design system: tokens, fonts and React components
 tooling/zrenderer/ Docker setup for the sprite renderer
-docs/              Architecture and renderer notes
+docs/              Architecture, renderer and design system notes
 ```
 
 See [docs/architecture.md](docs/architecture.md) for how the pieces fit

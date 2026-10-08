@@ -1,14 +1,9 @@
-export function Bar(props: {
-  value: number;
-  max: number;
-  kind: 'hp' | 'sp' | 'xp' | 'monster';
-  label?: string;
-}) {
-  const pct = props.max > 0 ? Math.max(0, Math.min(100, (props.value / props.max) * 100)) : 0;
-  return (
-    <div className={`bar bar-${props.kind}`} title={`${props.value} / ${props.max}`}>
-      <div className="bar-fill" style={{ width: `${pct}%` }} />
-      <span className="bar-label">{props.label ?? `${props.value} / ${props.max}`}</span>
-    </div>
-  );
+import { Meter, type MeterKind } from '@ragidle/ui';
+
+/**
+ * Meter with the legacy `bar` class, so the combat stage nameplates can keep
+ * shrinking it from styles.css. New code should use Meter from @ragidle/ui.
+ */
+export function Bar(props: { value: number; max: number; kind: MeterKind; label?: string }) {
+  return <Meter {...props} className="bar" />;
 }

@@ -67,6 +67,8 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
   animation.
 - `useGameStore` (Zustand) holds presentation state only: values copied from
   snapshots or replayed from events. It never computes outcomes.
+- Panels are built from the `@ragidle/ui` design system. See
+  [design-system.md](design-system.md).
 - `CombatStage` draws the field in a three-quarter view. Actors are placed by
   cell, in percentages of the field, and a `move` becomes one CSS transition
   over its duration, with the walk animation and the direction from the
