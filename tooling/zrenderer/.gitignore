@@ -1,0 +1,4 @@
+# Ragnarok Online client data and generated files must never be committed.
+resources/
+output/
+secrets/

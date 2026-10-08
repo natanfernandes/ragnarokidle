@@ -20,6 +20,8 @@ export interface ItemDefinition {
   /** Present on equipment. */
   equipment?: {
     slot: EquipmentSlot;
+    /** Ragnarok Online view id (weapon type for weapons), used by the sprite renderer. */
+    viewId?: number;
     attack?: number;
     defense?: number;
   };
@@ -33,8 +35,10 @@ export interface DropDefinition {
   maxQuantity: number;
 }
 
-/** Placeholder until the renderer is integrated: the client draws a simple shape. */
 export interface SpriteDefinition {
+  /** Ragnarok Online job or monster id, used by the sprite renderer. */
+  jobId?: number;
+  /** Drawn by the client when no rendered sprite is available. */
   placeholder: {
     shape: 'blob' | 'bug' | 'rabbit' | 'humanoid';
     color: string;

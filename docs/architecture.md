@@ -47,13 +47,13 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
   animation.
 - `useGameStore` (Zustand) holds presentation state only: values copied from
   snapshots or replayed from events. It never computes outcomes.
-- Sprites are SVG placeholders driven by `SpriteDefinition.placeholder`.
+- Sprites come from the renderer service through the game server, with SVG
+  placeholders as a fallback. See [renderer.md](renderer.md).
 
 ## Not done yet (by design, see spec section 78)
 
-1. Renderer integration (zrenderer / ragassets) replacing placeholder sprites
-2. PostgreSQL + Drizzle behind `CharacterRepository`
-3. Batched / statistical offline simulation for very long absences
-4. Real authentication
-5. Equipment changes, stat allocation, more content
-6. Target selection modes (only single encounters exist so far)
+1. PostgreSQL + Drizzle behind `CharacterRepository`
+2. Batched / statistical offline simulation for very long absences
+3. Real authentication
+4. Equipment changes, stat allocation, more content
+5. Target selection modes (only single encounters exist so far)

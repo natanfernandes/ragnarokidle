@@ -11,7 +11,7 @@ export const swordman: ClassDefinition = {
   baseAttackIntervalMs: 1400,
   startingStats: { str: 9, agi: 5, vit: 7, int: 1, dex: 5, luk: 3 },
   skills: ['bash'],
-  sprite: { placeholder: { shape: 'humanoid', color: '#3b6fd8' } },
+  sprite: { jobId: 1, placeholder: { shape: 'humanoid', color: '#3b6fd8' } },
 };
 
 export const classes: Record<string, ClassDefinition> = {

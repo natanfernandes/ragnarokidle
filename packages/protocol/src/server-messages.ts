@@ -15,6 +15,13 @@ export interface CombatSnapshot {
   respawnAt: number | null;
 }
 
+export interface AssetInfo {
+  /** Whether rendered sprites are available; otherwise the client draws placeholders. */
+  rendererEnabled: boolean;
+  /** Key for the player's sprites: /assets/render/player/{playerAppearance}/{action}. */
+  playerAppearance: string;
+}
+
 export interface OfflineRewards {
   /** Simulated time, which may be capped below the real elapsed time. */
   simulatedMs: number;
@@ -43,6 +50,7 @@ export type ServerMessage =
       character: CharacterState;
       derived: DerivedStats;
       combat: CombatSnapshot;
+      assets: AssetInfo;
       requestId?: string;
     }
   | { type: 'combat.events'; serverTime: number; events: CombatEvent[] }

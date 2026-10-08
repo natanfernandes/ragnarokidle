@@ -31,14 +31,14 @@ export const items: Record<string, ItemDefinition> = {
     name: 'Knife',
     category: 'equipment',
     sellPrice: 25,
-    equipment: { slot: 'weapon', attack: 10 },
+    equipment: { slot: 'weapon', viewId: 1, attack: 10 },
   },
   sword: {
     id: 'sword',
     name: 'Sword',
     category: 'equipment',
     sellPrice: 50,
-    equipment: { slot: 'weapon', attack: 25 },
+    equipment: { slot: 'weapon', viewId: 2, attack: 25 },
   },
   cotton_shirt: {
     id: 'cotton_shirt',

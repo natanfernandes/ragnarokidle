@@ -1,6 +1,7 @@
 import type { WebSocket } from 'ws';
 import type { FastifyBaseLogger } from 'fastify';
 import { type ClientMessage, type ServerMessage, parseClientMessage } from '@ragidle/protocol';
+import { type AppearanceRegistry, appearanceOf } from '../assets/appearance';
 import { authenticate } from '../auth';
 import { type CombatSession, GameRuleError, type SessionListener } from '../game/combat-session';
 import type { SessionManager } from '../game/session-manager';
@@ -21,6 +22,7 @@ export class GameConnection {
     private readonly sessions: SessionManager,
     private readonly clock: () => number,
     private readonly log: FastifyBaseLogger,
+    private readonly assets: { rendererEnabled: boolean; appearances: AppearanceRegistry },
   ) {
     this.limiter = new RateLimiter(20, 10, clock());
     socket.on('message', (data, isBinary) => this.onMessage(data.toString(), isBinary));
@@ -95,10 +97,15 @@ export class GameConnection {
 
   private sendSnapshot(requestId?: string): void {
     if (!this.session) return;
+    const snapshot = this.session.snapshot();
     this.send({
       type: 'state.snapshot',
       serverTime: this.clock(),
-      ...this.session.snapshot(),
+      ...snapshot,
+      assets: {
+        rendererEnabled: this.assets.rendererEnabled,
+        playerAppearance: this.assets.appearances.register(appearanceOf(snapshot.character)),
+      },
       requestId,
     });
   }

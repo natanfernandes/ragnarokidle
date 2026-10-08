@@ -34,6 +34,7 @@ export function createCharacter(
     experience: 0,
     zeny: 0,
     baseStats: { ...cls.startingStats },
+    appearance: { gender: 'male', head: 1, headPalette: -1, bodyPalette: -1 },
     hp: 0,
     sp: 0,
     equipment: { weapon: 'knife', armor: 'cotton_shirt' },

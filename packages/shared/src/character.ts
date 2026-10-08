@@ -7,6 +7,13 @@ export type InventoryState = Record<string, number>;
 
 export type EquipmentState = Partial<Record<EquipmentSlot, string>>;
 
+export interface CharacterAppearance {
+  gender: 'male' | 'female';
+  head: number;
+  headPalette: number;
+  bodyPalette: number;
+}
+
 export interface CharacterState {
   id: string;
   name: string;
@@ -16,6 +23,7 @@ export interface CharacterState {
   experience: number;
   zeny: number;
   baseStats: Stats;
+  appearance: CharacterAppearance;
   hp: number;
   sp: number;
   equipment: EquipmentState;

@@ -13,6 +13,7 @@
     "@ragidle/combat-engine": "workspace:*",
     "@ragidle/game-data": "workspace:*",
     "@ragidle/protocol": "workspace:*",
+    "@ragidle/renderer-client": "workspace:*",
     "@ragidle/shared": "workspace:*",
     "fastify": "^5.12.5"
   },

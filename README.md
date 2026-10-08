@@ -17,6 +17,9 @@ pnpm dev          # server on :3001, web on http://localhost:5173
 
 Open http://localhost:5173 and click **Farm Poring Meadow**.
 
+Sprites are placeholders until you connect a sprite renderer, which needs your
+own Ragnarok Online client data. See [docs/renderer.md](docs/renderer.md).
+
 ## Scripts
 
 | Command                       | What it does                                    |
@@ -42,7 +45,9 @@ packages/
   game-data/       Data-driven content: classes, skills, monsters, items, maps
   combat-engine/   Pure deterministic simulation (seeded RNG, no I/O)
   protocol/        WebSocket messages and zod validation
-docs/              Architecture notes
+  renderer-client/ zrenderer client and sprite cache
+tooling/zrenderer/ Docker setup for the sprite renderer
+docs/              Architecture and renderer notes
 ```
 
 See [docs/architecture.md](docs/architecture.md) for how the pieces fit

@@ -1,8 +1,15 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { gameData, swordman } from '@ragidle/game-data';
 import { type ActorAnimation, type FloatingText, useGameStore } from '../stores/game-store';
 import { Bar } from './Bar';
-import { Sprite } from './Sprite';
+import {
+  RENDERED_ACTIONS,
+  type RenderedAction,
+  monsterSpriteUrl,
+  playerSpriteUrl,
+  preloadSprites,
+} from '../presentation/sprite-assets';
+import { ActorSprite } from './ActorSprite';
 
 const FLOATING_TEXT_MS = 1000;
 
@@ -46,6 +53,27 @@ export function CombatStage() {
   const playerAnimation = useGameStore((s) => s.playerAnimation);
   const monsterAnimation = useGameStore((s) => s.monsterAnimation);
   const playerDead = useGameStore((s) => s.playerDead);
+  const assets = useGameStore((s) => s.assets);
+  const rendered = assets?.rendererEnabled === true;
+  const appearance = assets?.playerAppearance;
+  const monsterId = monster?.monsterId;
+
+  const playerUrl = useCallback(
+    (action: RenderedAction) => playerSpriteUrl(appearance ?? '', action),
+    [appearance],
+  );
+  const monsterUrl = useCallback(
+    (action: RenderedAction) => monsterSpriteUrl(monsterId ?? '', action),
+    [monsterId],
+  );
+
+  // Fetch every action up front so the first attack or hit does not stall.
+  useEffect(() => {
+    if (rendered && appearance) preloadSprites(RENDERED_ACTIONS.map(playerUrl));
+  }, [rendered, appearance, playerUrl]);
+  useEffect(() => {
+    if (rendered && monsterId) preloadSprites(RENDERED_ACTIONS.map(monsterUrl));
+  }, [rendered, monsterId, monsterUrl]);
 
   const monsterDef = monster ? gameData.monsters[monster.monsterId] : undefined;
   const mapName = combat?.mapId ? gameData.maps[combat.mapId]?.name : undefined;
@@ -62,7 +90,12 @@ export function CombatStage() {
                 <Bar kind="hp" value={character.hp} max={derived.maxHp} label="" />
               </div>
               <Actor side="player" animation={playerAnimation} dead={playerDead}>
-                <Sprite sprite={swordman.sprite} facing="right" />
+                <ActorSprite
+                  animation={playerAnimation}
+                  spriteUrl={rendered && appearance ? playerUrl : null}
+                  placeholder={swordman.sprite}
+                  facing="right"
+                />
               </Actor>
             </>
           )}
@@ -75,7 +108,12 @@ export function CombatStage() {
                 <Bar kind="monster" value={monster.hp} max={monster.maxHp} label="" />
               </div>
               <Actor side="monster" animation={monsterAnimation} dead={monster.dying}>
-                <Sprite sprite={monsterDef.sprite} facing="left" />
+                <ActorSprite
+                  animation={monsterAnimation}
+                  spriteUrl={rendered ? monsterUrl : null}
+                  placeholder={monsterDef.sprite}
+                  facing="left"
+                />
               </Actor>
             </>
           )}
