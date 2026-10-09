@@ -1,29 +1,29 @@
+import type { CombatState } from '@ragidle/combat-engine';
 import type { CharacterState } from '@ragidle/shared';
-import { createCharacter } from '@ragidle/combat-engine';
 
-/** Storage seam for characters. In-memory for now; PostgreSQL comes later. */
+/** A character plus the fight it is running, if any. Saved and loaded as one unit. */
+export interface StoredCharacter {
+  character: CharacterState;
+  /** Its `character` is the same as the stored character. */
+  combat: CombatState | null;
+}
+
+/** Storage seam for characters: PostgreSQL in the app, in memory in tests and quick dev runs. */
 export interface CharacterRepository {
-  get(id: string): CharacterState | undefined;
-  save(character: CharacterState): void;
+  load(id: string): Promise<StoredCharacter | null>;
+  /** Saves everything about the character atomically. */
+  save(stored: StoredCharacter): Promise<void>;
 }
 
 export class InMemoryCharacterRepository implements CharacterRepository {
-  private readonly characters = new Map<string, CharacterState>();
+  private readonly characters = new Map<string, StoredCharacter>();
 
-  get(id: string): CharacterState | undefined {
-    const character = this.characters.get(id);
-    return character && structuredClone(character);
+  async load(id: string): Promise<StoredCharacter | null> {
+    const stored = this.characters.get(id);
+    return stored ? structuredClone(stored) : null;
   }
 
-  save(character: CharacterState): void {
-    this.characters.set(character.id, structuredClone(character));
-  }
-
-  getOrCreate(id: string, name: string, now: number): CharacterState {
-    const existing = this.get(id);
-    if (existing) return existing;
-    const created = createCharacter({ id, name, now });
-    this.save(created);
-    return created;
+  async save(stored: StoredCharacter): Promise<void> {
+    this.characters.set(stored.character.id, structuredClone(stored));
   }
 }

@@ -3,6 +3,9 @@ import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import type { ServerMessage } from '@ragidle/protocol';
 import { buildApp } from './app';
+import { PostgresCharacterRepository } from './characters/postgres-character-repository';
+import type { CharacterRepository } from './characters/character-repository';
+import { createTestDatabase } from './db/test-database';
 
 let app: FastifyInstance | undefined;
 
@@ -52,8 +55,11 @@ function messages(socket: WebSocket) {
   };
 }
 
-async function startApp(clock?: () => number): Promise<FastifyInstance> {
-  const instance = await buildApp({ config: { maxOfflineMs: 3_600_000 }, clock });
+async function startApp(
+  clock?: () => number,
+  repository?: CharacterRepository,
+): Promise<FastifyInstance> {
+  const instance = await buildApp({ config: { maxOfflineMs: 3_600_000 }, clock, repository });
   await instance.ready();
   return instance;
 }
@@ -172,5 +178,45 @@ describe('server', () => {
     send(socket, { type: 'combat.config.update', config });
     expect(await inbox.next('error')).toMatchObject({ code: 'invalid_config' });
     socket.terminate();
+  });
+
+  it('keeps characters and running fights across server restarts', async () => {
+    const database = await createTestDatabase();
+    const repository = new PostgresCharacterRepository(database.db);
+    let now = 1_000_000;
+    try {
+      app = await startApp(() => now, repository);
+      const first = await app.injectWS('/game');
+      const firstInbox = messages(first);
+      send(first, { type: 'authenticate', token: 'dev:keeper' });
+      const { character } = await firstInbox.next('state.snapshot');
+      const config = structuredClone(character.combatConfig);
+      config.potions.hp.belowPercent = 25;
+      send(first, { type: 'combat.config.update', config, requestId: 'cfg' });
+      await firstInbox.next('state.snapshot', (s) => s.requestId === 'cfg');
+      send(first, { type: 'combat.start', mapId: 'poring_field', requestId: 'go' });
+      const before = await firstInbox.next('state.snapshot', (s) => s.requestId === 'go');
+      first.terminate();
+      // Shutting down saves everything.
+      await app.close();
+
+      now += 20 * 60_000;
+      app = await startApp(() => now, repository);
+      const second = await app.injectWS('/game');
+      const secondInbox = messages(second);
+      send(second, { type: 'authenticate', token: 'dev:keeper' });
+      const { rewards } = await secondInbox.next('offline.rewards');
+      expect(rewards.kills).toBeGreaterThan(0);
+      const after = await secondInbox.next('state.snapshot');
+      expect(after.combat).toMatchObject({ active: true, mapId: 'poring_field' });
+      expect(after.character.combatConfig.potions.hp.belowPercent).toBe(25);
+      expect(after.character.zeny - before.character.zeny).toBe(rewards.zeny);
+      expect(after.character.inventory.jellopy).toBeGreaterThan(0);
+      second.terminate();
+    } finally {
+      await app?.close();
+      app = undefined;
+      await database.close();
+    }
   });
 });

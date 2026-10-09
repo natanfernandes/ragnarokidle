@@ -7,7 +7,14 @@ describe('loadConfig', () => {
   });
 
   it('has no renderer by default in production', () => {
-    expect(loadConfig({ NODE_ENV: 'production' }).renderer.url).toBeNull();
+    const production = { NODE_ENV: 'production', DATABASE_URL: 'postgres://db/ragidle' };
+    expect(loadConfig(production).renderer.url).toBeNull();
+  });
+
+  it('requires a database in production only', () => {
+    expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/DATABASE_URL/);
+    expect(loadConfig({}).databaseUrl).toBeNull();
+    expect(loadConfig({ DATABASE_URL: 'postgres://db/x' }).databaseUrl).toBe('postgres://db/x');
   });
 
   it('turns rendering off with an empty RENDERER_URL', () => {

@@ -17,7 +17,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "simulate": "pnpm --filter @ragidle/combat-engine simulate"
+    "simulate": "pnpm --filter @ragidle/combat-engine simulate",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @ragidle/server db:generate"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

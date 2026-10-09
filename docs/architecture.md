@@ -55,7 +55,35 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
 - Every client message is validated with zod (`packages/protocol`), rate
   limited, and checked against game rules (`GameRuleError`).
 - Authentication is a development stub: the token `dev:<name>` maps to a
-  character. Characters are stored in memory behind `CharacterRepository`.
+  character.
+
+### Persistence
+
+Characters live in PostgreSQL through Drizzle (`apps/server/src/db/schema.ts`,
+migrations in `apps/server/drizzle`, applied on startup):
+
+| Table                 | Holds                                                                 |
+| --------------------- | --------------------------------------------------------------------- |
+| `characters`          | Level, experience, Zeny, HP/SP, map, appearance, last simulation time |
+| `character_stats`     | Base stats                                                            |
+| `character_equipment` | Item per equipment slot                                               |
+| `inventory_items`     | Quantity per item                                                     |
+| `combat_configs`      | The farming strategy (JSON)                                           |
+| `combat_sessions`     | The running fight: engine state minus the character (JSON)            |
+
+Static content (items, monsters, maps) stays in `@ragidle/game-data`.
+
+`CharacterRepository.save` writes all of a character in one transaction, so a
+level, its rewards and its inventory change together or not at all. Combat
+events are never stored. `SaveScheduler` writes routine progress at most every
+5 s and starts, stops, config changes and offline catch-up at once; the last
+viewer leaving and shutdown flush everything. A crash loses at most the last
+interval, and nothing is gained or lost by it: the saved fight holds the RNG
+state, so catching up from it replays exactly the same fights.
+
+Without `DATABASE_URL` (tests, quick runs) an in-memory repository is used;
+production refuses to start without one. Repository tests run the real
+migrations on PGlite, an in-process PostgreSQL.
 
 ## Web (`apps/web`)
 
@@ -76,8 +104,7 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
 
 ## Not done yet (by design, see spec section 78)
 
-1. PostgreSQL + Drizzle behind `CharacterRepository`
-2. Batched / statistical offline simulation for very long absences
-3. Real authentication
-4. Equipment changes, stat allocation, more content
-5. Target selection modes (only single encounters exist so far)
+1. Batched / statistical offline simulation for very long absences
+2. Real authentication (accounts and sessions tables come with it)
+3. Equipment changes, stat allocation, more content
+4. Target selection modes (only single encounters exist so far)
