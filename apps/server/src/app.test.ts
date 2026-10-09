@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import type { WebSocket } from 'ws';
-import type { ServerMessage } from '@ragidle/protocol';
+import { eq } from 'drizzle-orm';
+import { UNAUTHENTICATED_CLOSE_CODE } from '@ragidle/protocol';
 import { buildApp } from './app';
-import { PostgresCharacterRepository } from './characters/postgres-character-repository';
-import type { CharacterRepository } from './characters/character-repository';
+import type { Database } from './db/database';
+import { accounts } from './db/schema';
 import { createTestDatabase } from './db/test-database';
+import { openGame, send, settle, signUp } from './test-support';
 
 let app: FastifyInstance | undefined;
 
@@ -14,57 +15,11 @@ afterEach(async () => {
   app = undefined;
 });
 
-/** Collects every server message and lets tests wait for a specific one. */
-function messages(socket: WebSocket) {
-  const received: ServerMessage[] = [];
-  const waiters: {
-    predicate: (m: ServerMessage) => boolean;
-    resolve: (m: ServerMessage) => void;
-  }[] = [];
-  socket.on('message', (data) => {
-    const message = JSON.parse(data.toString()) as ServerMessage;
-    received.push(message);
-    for (const waiter of [...waiters]) {
-      if (waiter.predicate(message)) {
-        waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.resolve(message);
-      }
-    }
-  });
-  return {
-    received,
-    next<T extends ServerMessage['type']>(
-      type: T,
-      predicate: (m: Extract<ServerMessage, { type: T }>) => boolean = () => true,
-    ): Promise<Extract<ServerMessage, { type: T }>> {
-      const existing = received.find(
-        (m): m is Extract<ServerMessage, { type: T }> => m.type === type && predicate(m as never),
-      );
-      if (existing) return Promise.resolve(existing);
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error(`Timed out waiting for ${type}`)), 5000);
-        waiters.push({
-          predicate: (m) => m.type === type && predicate(m as never),
-          resolve: (m) => {
-            clearTimeout(timeout);
-            resolve(m as never);
-          },
-        });
-      });
-    },
-  };
-}
-
-async function startApp(
-  clock?: () => number,
-  repository?: CharacterRepository,
-): Promise<FastifyInstance> {
-  const instance = await buildApp({ config: { maxOfflineMs: 3_600_000 }, clock, repository });
+async function startApp(clock?: () => number, database?: Database): Promise<FastifyInstance> {
+  const instance = await buildApp({ config: { maxOfflineMs: 3_600_000 }, clock, database });
   await instance.ready();
   return instance;
 }
-
-const send = (socket: WebSocket, message: object) => socket.send(JSON.stringify(message));
 
 describe('server', () => {
   it('serves a health endpoint', async () => {
@@ -74,31 +29,29 @@ describe('server', () => {
     expect(response.json()).toMatchObject({ status: 'ok' });
   });
 
-  it('rejects commands before authentication and invalid messages', async () => {
+  it('closes game sockets that have no valid session', async () => {
     app = await startApp();
-    const socket = await app.injectWS('/game');
-    const inbox = messages(socket);
+    expect(await (await openGame(app)).closed).toBe(UNAUTHENTICATED_CLOSE_CODE);
+    const forged = await openGame(app, 'ragidle_session=made-up');
+    expect(await forged.closed).toBe(UNAUTHENTICATED_CLOSE_CODE);
+  });
 
-    send(socket, { type: 'combat.start', mapId: 'prontera_field' });
-    expect(await inbox.next('error')).toMatchObject({ code: 'unauthenticated' });
-
+  it('rejects invalid messages', async () => {
+    app = await startApp();
+    const { socket, inbox } = await openGame(app, await signUp(app, 'Validator'));
+    await inbox.next('state.snapshot');
     send(socket, { type: 'combat.start', mapId: 42 });
-    expect(await inbox.next('error', (e) => e.code === 'invalid_message')).toBeDefined();
-
-    send(socket, { type: 'authenticate', token: 'not-a-dev-token' });
-    expect(inbox.received.filter((m) => m.type === 'authenticated')).toHaveLength(0);
+    expect(await inbox.next('error')).toMatchObject({ code: 'invalid_message' });
     socket.terminate();
   });
 
   it('streams combat events after combat.start until a Poring dies', async () => {
     app = await startApp();
-    const socket = await app.injectWS('/game');
-    const inbox = messages(socket);
+    const { socket, inbox } = await openGame(app, await signUp(app, 'Tester'));
 
-    send(socket, { type: 'authenticate', token: 'dev:tester' });
-    await inbox.next('authenticated');
+    expect(await inbox.next('authenticated')).toMatchObject({ offlineProgress: false });
     const initial = await inbox.next('state.snapshot');
-    expect(initial.character.classId).toBe('swordman');
+    expect(initial.character).toMatchObject({ name: 'Tester', classId: 'swordman' });
     expect(initial.combat.active).toBe(false);
 
     send(socket, { type: 'combat.start', mapId: 'poring_field', requestId: 'r1' });
@@ -129,48 +82,66 @@ describe('server', () => {
     socket.terminate();
   });
 
-  it('grants offline rewards on reconnect without duplicating them', async () => {
+  it('pauses free players while away and rewards VIPs without duplicates', async () => {
+    const database = await createTestDatabase();
     let now = 1_000_000;
-    app = await startApp(() => now);
+    try {
+      app = await startApp(() => now, database.db);
+      const free = await signUp(app, 'FreePlayer');
+      const vip = await signUp(app, 'VipPlayer');
+      await database.db
+        .update(accounts)
+        .set({ vip: true })
+        .where(eq(accounts.email, 'vipplayer@example.com'));
 
-    const first = await app.injectWS('/game');
-    const firstInbox = messages(first);
-    send(first, { type: 'authenticate', token: 'dev:sleeper' });
-    await firstInbox.next('state.snapshot');
-    send(first, { type: 'combat.start', mapId: 'prontera_field', requestId: 'start' });
-    const before = await firstInbox.next('state.snapshot', (s) => s.requestId === 'start');
-    first.terminate();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+      const startFarming = async (cookie: string) => {
+        const { socket, inbox } = await openGame(app!, cookie);
+        await inbox.next('state.snapshot');
+        send(socket, { type: 'combat.start', mapId: 'prontera_field', requestId: 'go' });
+        const before = await inbox.next('state.snapshot', (s) => s.requestId === 'go');
+        socket.terminate();
+        await settle();
+        return before;
+      };
+      const freeBefore = await startFarming(free);
+      const vipBefore = await startFarming(vip);
 
-    now += 30 * 60_000; // away for 30 minutes
+      now += 30 * 60_000; // away for 30 minutes
 
-    const second = await app.injectWS('/game');
-    const secondInbox = messages(second);
-    send(second, { type: 'authenticate', token: 'dev:sleeper' });
-    const { rewards } = await secondInbox.next('offline.rewards');
-    expect(rewards.simulatedMs).toBe(30 * 60_000);
-    expect(rewards.kills).toBeGreaterThan(0);
-    expect(rewards.experience).toBeGreaterThan(0);
-    const after = await secondInbox.next('state.snapshot');
-    expect(after.character.zeny - before.character.zeny).toBe(rewards.zeny);
-    second.terminate();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+      const freeBack = await openGame(app, free);
+      expect(await freeBack.inbox.next('authenticated')).toMatchObject({ offlineProgress: false });
+      const freeAfter = await freeBack.inbox.next('state.snapshot');
+      expect(freeBack.inbox.received.some((m) => m.type === 'offline.rewards')).toBe(false);
+      expect(freeAfter.combat.active).toBe(true);
+      expect(freeAfter.character.experience).toBe(freeBefore.character.experience);
+      expect(freeAfter.character.lastSimulationAt).toBe(now);
+      freeBack.socket.terminate();
 
-    // Reconnecting immediately must not grant the same rewards again.
-    const third = await app.injectWS('/game');
-    const thirdInbox = messages(third);
-    send(third, { type: 'authenticate', token: 'dev:sleeper' });
-    const again = await thirdInbox.next('state.snapshot');
-    expect(thirdInbox.received.some((m) => m.type === 'offline.rewards')).toBe(false);
-    expect(again.character.zeny).toBe(after.character.zeny);
-    third.terminate();
+      const vipBack = await openGame(app, vip);
+      const { rewards } = await vipBack.inbox.next('offline.rewards');
+      expect(rewards.simulatedMs).toBe(30 * 60_000);
+      expect(rewards.kills).toBeGreaterThan(0);
+      const vipAfter = await vipBack.inbox.next('state.snapshot');
+      expect(vipAfter.character.zeny - vipBefore.character.zeny).toBe(rewards.zeny);
+      vipBack.socket.terminate();
+      await settle();
+
+      // Reconnecting immediately must not grant the same rewards again.
+      const again = await openGame(app, vip);
+      const snapshot = await again.inbox.next('state.snapshot');
+      expect(again.inbox.received.some((m) => m.type === 'offline.rewards')).toBe(false);
+      expect(snapshot.character.zeny).toBe(vipAfter.character.zeny);
+      again.socket.terminate();
+    } finally {
+      await app?.close();
+      app = undefined;
+      await database.close();
+    }
   });
 
   it('rejects configs that reference unknown content', async () => {
     app = await startApp();
-    const socket = await app.injectWS('/game');
-    const inbox = messages(socket);
-    send(socket, { type: 'authenticate', token: 'dev:config' });
+    const { socket, inbox } = await openGame(app, await signUp(app, 'Configurer'));
     const { character } = await inbox.next('state.snapshot');
 
     const config = structuredClone(character.combatConfig);
@@ -182,37 +153,33 @@ describe('server', () => {
 
   it('keeps characters and running fights across server restarts', async () => {
     const database = await createTestDatabase();
-    const repository = new PostgresCharacterRepository(database.db);
     let now = 1_000_000;
     try {
-      app = await startApp(() => now, repository);
-      const first = await app.injectWS('/game');
-      const firstInbox = messages(first);
-      send(first, { type: 'authenticate', token: 'dev:keeper' });
-      const { character } = await firstInbox.next('state.snapshot');
+      app = await startApp(() => now, database.db);
+      const cookie = await signUp(app, 'Keeper');
+      const first = await openGame(app, cookie);
+      const { character } = await first.inbox.next('state.snapshot');
       const config = structuredClone(character.combatConfig);
       config.potions.hp.belowPercent = 25;
-      send(first, { type: 'combat.config.update', config, requestId: 'cfg' });
-      await firstInbox.next('state.snapshot', (s) => s.requestId === 'cfg');
-      send(first, { type: 'combat.start', mapId: 'poring_field', requestId: 'go' });
-      const before = await firstInbox.next('state.snapshot', (s) => s.requestId === 'go');
-      first.terminate();
+      send(first.socket, { type: 'combat.config.update', config, requestId: 'cfg' });
+      await first.inbox.next('state.snapshot', (s) => s.requestId === 'cfg');
+      send(first.socket, { type: 'combat.start', mapId: 'poring_field', requestId: 'go' });
+      await first.inbox.next('state.snapshot', (s) => s.requestId === 'go');
+      now += 20_000;
+      first.socket.terminate();
       // Shutting down saves everything.
       await app.close();
 
-      now += 20 * 60_000;
-      app = await startApp(() => now, repository);
-      const second = await app.injectWS('/game');
-      const secondInbox = messages(second);
-      send(second, { type: 'authenticate', token: 'dev:keeper' });
-      const { rewards } = await secondInbox.next('offline.rewards');
-      expect(rewards.kills).toBeGreaterThan(0);
-      const after = await secondInbox.next('state.snapshot');
+      now += 60 * 60_000;
+      app = await startApp(() => now, database.db);
+      // The session survives the restart too.
+      const second = await openGame(app, cookie);
+      const after = await second.inbox.next('state.snapshot');
       expect(after.combat).toMatchObject({ active: true, mapId: 'poring_field' });
       expect(after.character.combatConfig.potions.hp.belowPercent).toBe(25);
-      expect(after.character.zeny - before.character.zeny).toBe(rewards.zeny);
+      // Progress from the 20 s of play was kept.
       expect(after.character.inventory.jellopy).toBeGreaterThan(0);
-      second.terminate();
+      second.socket.terminate();
     } finally {
       await app?.close();
       app = undefined;

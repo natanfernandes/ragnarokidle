@@ -68,6 +68,8 @@ const MAX_FLOATING = 12;
 interface GameState {
   status: ConnectionStatus;
   characterId: string | null;
+  /** False for free accounts: combat pauses while no tab is open. */
+  offlineProgress: boolean;
   character: CharacterState | null;
   derived: DerivedStats | null;
   combat: CombatSnapshot | null;
@@ -134,6 +136,7 @@ const facing = (placement: StagePlacement, target: StagePlacement | null | undef
 export const useGameStore = create<GameState>()((set, get) => ({
   status: 'disconnected',
   characterId: null,
+  offlineProgress: false,
   character: null,
   derived: null,
   combat: null,
@@ -153,7 +156,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
   applyServerMessage: (message, coveredEvents = []) => {
     switch (message.type) {
       case 'authenticated':
-        set({ characterId: message.characterId, lastError: null });
+        set({
+          characterId: message.characterId,
+          offlineProgress: message.offlineProgress,
+          lastError: null,
+        });
         return;
       case 'state.snapshot': {
         const { monster, player } = message.combat;

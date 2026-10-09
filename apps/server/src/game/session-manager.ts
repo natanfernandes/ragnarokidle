@@ -1,6 +1,4 @@
-import { createCharacter } from '@ragidle/combat-engine';
 import type { CharacterRepository } from '../characters/character-repository';
-import type { AuthenticatedPlayer } from '../auth';
 import { CombatSession, type CombatSessionDeps } from './combat-session';
 
 export class SessionManager {
@@ -11,14 +9,14 @@ export class SessionManager {
     private readonly deps: Omit<CombatSessionDeps, 'repository'>,
   ) {}
 
-  /** Loads (or creates) the player's character once; later calls share the session. */
-  forPlayer(player: AuthenticatedPlayer): Promise<CombatSession> {
-    let session = this.sessions.get(player.characterId);
+  /** Loads the character once; later calls share the session. */
+  forCharacter(characterId: string): Promise<CombatSession> {
+    let session = this.sessions.get(characterId);
     if (!session) {
-      session = this.open(player);
-      this.sessions.set(player.characterId, session);
+      session = this.open(characterId);
+      this.sessions.set(characterId, session);
       // A failed load must not stick: the next attempt tries again.
-      session.catch(() => this.sessions.delete(player.characterId));
+      session.catch(() => this.sessions.delete(characterId));
     }
     return session;
   }
@@ -32,19 +30,10 @@ export class SessionManager {
     );
   }
 
-  private async open(player: AuthenticatedPlayer): Promise<CombatSession> {
-    let stored = await this.repository.load(player.characterId);
-    if (!stored) {
-      stored = {
-        character: createCharacter({
-          id: player.characterId,
-          name: player.characterName,
-          now: this.deps.clock(),
-        }),
-        combat: null,
-      };
-      await this.repository.save(stored);
-    }
+  private async open(characterId: string): Promise<CombatSession> {
+    // Characters are created with their account, so a missing one is a bug.
+    const stored = await this.repository.load(characterId);
+    if (!stored) throw new Error(`Character ${characterId} does not exist`);
     return new CombatSession(stored, { ...this.deps, repository: this.repository });
   }
 }

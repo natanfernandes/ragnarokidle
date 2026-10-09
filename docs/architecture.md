@@ -48,28 +48,51 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
 - `CombatSession` owns one character's combat. While a client is connected, a
   single `setTimeout` fires at the next scheduled action (no polling loop),
   advances the engine to "now", and broadcasts the events.
-- When the last client disconnects, the timer stops. On reconnect, the elapsed
-  time is simulated in one call (`recordEvents: false`) and summarized as an
-  `offline.rewards` message. Rewards are part of the state, so reconnecting
-  never duplicates them. The simulated time is capped by `MAX_OFFLINE_HOURS`.
+- When the last client disconnects, the timer stops. What happens on the next
+  connect depends on the account:
+  - **VIP**: the elapsed time is simulated in one call (`recordEvents: false`)
+    and summarized as an `offline.rewards` message. Rewards are part of the
+    state, so reconnecting never duplicates them. The simulated time is capped
+    by `MAX_OFFLINE_HOURS`.
+  - **Free**: the fight was paused. `resumeCombat` shifts every scheduled time
+    by the absence, so the fight continues exactly where it stopped, with no
+    rewards and no losses for the time away.
 - Every client message is validated with zod (`packages/protocol`), rate
   limited, and checked against game rules (`GameRuleError`).
-- Authentication is a development stub: the token `dev:<name>` maps to a
-  character.
+
+### Accounts and sessions
+
+- `POST /auth/register` creates an account and its character together (one
+  character per account for now); `/auth/login`, `/auth/logout` and
+  `GET /auth/me` complete the set. Bodies are validated with the zod schemas in
+  `packages/protocol/src/auth.ts`.
+- Passwords are hashed with scrypt (`N=2^15, r=8, p=1`, per-password salt).
+  Unknown emails still pay for a hash so timing does not reveal accounts.
+  Register and login are rate limited per IP.
+- A session is 32 random bytes sent as the httpOnly, SameSite=Lax cookie
+  `ragidle_session` (Secure in production, 30 days). Only its SHA-256 is
+  stored, in `sessions`.
+- The game WebSocket is authenticated from that cookie during the upgrade.
+  Without a valid session it closes with code `4401`, and the web client shows
+  the sign-in screen instead of reconnecting.
+- `accounts.vip` is the only entitlement so far; it switches on offline
+  progress.
 
 ### Persistence
 
 Characters live in PostgreSQL through Drizzle (`apps/server/src/db/schema.ts`,
 migrations in `apps/server/drizzle`, applied on startup):
 
-| Table                 | Holds                                                                 |
-| --------------------- | --------------------------------------------------------------------- |
-| `characters`          | Level, experience, Zeny, HP/SP, map, appearance, last simulation time |
-| `character_stats`     | Base stats                                                            |
-| `character_equipment` | Item per equipment slot                                               |
-| `inventory_items`     | Quantity per item                                                     |
-| `combat_configs`      | The farming strategy (JSON)                                           |
-| `combat_sessions`     | The running fight: engine state minus the character (JSON)            |
+| Table                 | Holds                                                               |
+| --------------------- | ------------------------------------------------------------------- |
+| `accounts`            | Email, password hash, VIP flag                                      |
+| `sessions`            | SHA-256 of each session token, owner and expiry                     |
+| `characters`          | Owner, unique name, level, experience, Zeny, HP/SP, map, appearance |
+| `character_stats`     | Base stats                                                          |
+| `character_equipment` | Item per equipment slot                                             |
+| `inventory_items`     | Quantity per item                                                   |
+| `combat_configs`      | The farming strategy (JSON)                                         |
+| `combat_sessions`     | The running fight: engine state minus the character (JSON)          |
 
 Static content (items, monsters, maps) stays in `@ragidle/game-data`.
 
@@ -87,7 +110,8 @@ migrations on PGlite, an in-process PostgreSQL.
 
 ## Web (`apps/web`)
 
-- `GameClient` connects, authenticates, and reconnects with backoff. After a
+- `App` checks `/auth/me` and shows `AuthScreen` until there is a session.
+- `GameClient` connects (the cookie authenticates it) and reconnects with backoff. After a
   reconnect the server sends the authoritative snapshot.
 - `PresentationScheduler` replays events on a local timeline: simulation time
   is mapped through the server clock offset plus a small buffer, so batched
@@ -104,7 +128,7 @@ migrations on PGlite, an in-process PostgreSQL.
 
 ## Not done yet (by design, see spec section 78)
 
-1. Batched / statistical offline simulation for very long absences
-2. Real authentication (accounts and sessions tables come with it)
-3. Equipment changes, stat allocation, more content
-4. Target selection modes (only single encounters exist so far)
+1. Equipment changes, stat allocation, more content
+2. Target selection modes (only single encounters exist so far)
+3. Password reset, email verification and OAuth sign-in
+4. Batched / statistical offline simulation for very long VIP absences

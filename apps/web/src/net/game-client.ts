@@ -1,6 +1,11 @@
-import { type ClientMessage, GAME_SOCKET_PATH, type ServerMessage } from '@ragidle/protocol';
+import {
+  type ClientMessage,
+  GAME_SOCKET_PATH,
+  type ServerMessage,
+  UNAUTHENTICATED_CLOSE_CODE,
+} from '@ragidle/protocol';
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'unauthenticated';
 
 interface GameClientHandlers {
   onMessage: (message: ServerMessage) => void;
@@ -10,8 +15,9 @@ interface GameClientHandlers {
 const MAX_RECONNECT_DELAY_MS = 10_000;
 
 /**
- * Thin WebSocket wrapper. On every (re)connect it authenticates and the server
- * replies with the authoritative state; nothing is reconstructed locally.
+ * Thin WebSocket wrapper. The browser sends the session cookie with the upgrade
+ * request and the server replies with the authoritative state; nothing is
+ * reconstructed locally. A rejected session stops reconnecting.
  */
 export class GameClient {
   private socket: WebSocket | null = null;
@@ -19,10 +25,7 @@ export class GameClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
 
-  constructor(
-    private readonly token: string,
-    private readonly handlers: GameClientHandlers,
-  ) {}
+  constructor(private readonly handlers: GameClientHandlers) {}
 
   connect(): void {
     this.closed = false;
@@ -34,14 +37,18 @@ export class GameClient {
     socket.addEventListener('open', () => {
       this.reconnectAttempts = 0;
       this.handlers.onStatus('connected');
-      this.send({ type: 'authenticate', token: this.token });
     });
     socket.addEventListener('message', (event) => {
       this.handlers.onMessage(JSON.parse(String(event.data)) as ServerMessage);
     });
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (event) => {
       if (this.socket !== socket) return;
       this.socket = null;
+      if (event.code === UNAUTHENTICATED_CLOSE_CODE) {
+        this.closed = true;
+        this.handlers.onStatus('unauthenticated');
+        return;
+      }
       this.handlers.onStatus('disconnected');
       if (!this.closed) this.scheduleReconnect();
     });

@@ -64,8 +64,61 @@ button:hover {
 .status-connecting {
   background: #f9a825;
 }
-.status-disconnected {
+.status-disconnected,
+.status-unauthenticated {
   background: #c62828;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.topbar-actions .hint,
+.topbar-actions .account {
+  opacity: 0.8;
+}
+
+.auth-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, 100%);
+  padding-bottom: 14px;
+}
+.auth-form > :not(h2) {
+  margin: 0 14px;
+}
+.auth-tabs {
+  display: flex;
+  gap: 6px;
+}
+.auth-tabs button {
+  flex: 1;
+}
+.auth-tabs button.active {
+  background: linear-gradient(var(--title), #36508a);
+  color: #fff;
+}
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.auth-form input {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--window-border);
+  border-radius: 4px;
 }
 
 .error {
