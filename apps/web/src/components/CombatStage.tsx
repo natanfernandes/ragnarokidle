@@ -150,6 +150,7 @@ export function CombatStage() {
                   spriteUrl={playerUrl}
                   direction={player.direction}
                   placeholder={swordman.sprite}
+                  armed={!!character.equipment.weapon}
                   facing="right"
                 />
               </Actor>

@@ -252,6 +252,38 @@ button:hover {
 .item-equipment {
   color: #1565c0;
 }
+.inventory li > :first-child {
+  flex: 1;
+}
+.equipment .slot-name {
+  flex: 0 0 auto;
+  width: 110px;
+  color: var(--muted);
+}
+.equipment .item-name {
+  flex: 1;
+}
+.equip-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+  font-size: 12px;
+}
+.equip-action .better {
+  color: #2e7d32;
+}
+.equip-action .worse {
+  color: #c62828;
+}
+button.small {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .row {
   display: flex;

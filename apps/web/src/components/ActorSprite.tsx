@@ -51,6 +51,8 @@ export function ActorSprite(props: {
   /** Ragnarok Online direction (0 south ... 7 south-east). */
   direction: number;
   placeholder: SpriteDefinition;
+  /** Draws a weapon on the humanoid placeholder. */
+  armed?: boolean;
   /** Placeholder facing for straight north or south. */
   facing: 'left' | 'right';
 }) {
@@ -121,7 +123,11 @@ export function ActorSprite(props: {
 
   if (!spriteUrl || unavailable || !image) {
     return (
-      <Sprite sprite={props.placeholder} facing={placeholderFacing(direction, props.facing)} />
+      <Sprite
+        sprite={props.placeholder}
+        facing={placeholderFacing(direction, props.facing)}
+        armed={props.armed}
+      />
     );
   }
   return <img className="rendered-sprite" src={image} alt="" draggable={false} />;

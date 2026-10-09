@@ -1,5 +1,5 @@
 import type { CharacterState, DerivedStats } from '@ragidle/shared';
-import { clamp } from '@ragidle/shared';
+import { STAT_KEYS, clamp } from '@ragidle/shared';
 import { type GameData, gameData } from '@ragidle/game-data';
 
 export const CRITICAL_MULTIPLIER = 1.4;
@@ -10,16 +10,18 @@ export const MIN_ATTACK_INTERVAL_MS = 400;
 export function deriveStats(character: CharacterState, data: GameData = gameData): DerivedStats {
   const cls = data.classes[character.classId];
   if (!cls) throw new Error(`Unknown class: ${character.classId}`);
-  const { str, agi, vit, int, dex, luk } = character.baseStats;
   const level = character.level;
 
   let weaponAttack = 0;
   let armorDefense = 0;
+  const stats = { ...character.baseStats };
   for (const itemId of Object.values(character.equipment)) {
     const equipment = itemId ? data.items[itemId]?.equipment : undefined;
     weaponAttack += equipment?.attack ?? 0;
     armorDefense += equipment?.defense ?? 0;
+    for (const key of STAT_KEYS) stats[key] += equipment?.stats?.[key] ?? 0;
   }
+  const { str, agi, vit, int, dex, luk } = stats;
 
   return {
     maxHp: Math.floor((cls.hpBase + cls.hpPerLevel * (level - 1)) * (1 + vit * 0.01)),

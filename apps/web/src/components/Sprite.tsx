@@ -1,7 +1,15 @@
 import type { SpriteDefinition } from '@ragidle/shared';
 
 /** Placeholder sprites until the renderer service is integrated. */
-export function Sprite({ sprite, facing }: { sprite: SpriteDefinition; facing: 'left' | 'right' }) {
+export function Sprite({
+  sprite,
+  facing,
+  armed = true,
+}: {
+  sprite: SpriteDefinition;
+  facing: 'left' | 'right';
+  armed?: boolean;
+}) {
   const { shape, color } = sprite.placeholder;
   return (
     <svg
@@ -45,16 +53,18 @@ export function Sprite({ sprite, facing }: { sprite: SpriteDefinition; facing: '
       )}
       {shape === 'humanoid' && (
         <g>
-          <rect
-            x="70"
-            y="22"
-            width="5"
-            height="48"
-            rx="2"
-            fill="#cfd8dc"
-            stroke="#78909c"
-            transform="rotate(25 72 60)"
-          />
+          {armed && (
+            <rect
+              x="70"
+              y="22"
+              width="5"
+              height="48"
+              rx="2"
+              fill="#cfd8dc"
+              stroke="#78909c"
+              transform="rotate(25 72 60)"
+            />
+          )}
           <circle cx="50" cy="26" r="12" fill="#ffcc80" />
           <path d="M38 22 Q50 6 62 22 Z" fill="#6d4c41" />
           <rect x="36" y="38" width="28" height="30" rx="6" fill={color} />

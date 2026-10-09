@@ -5,6 +5,7 @@ import { CharacterPanel } from './components/CharacterPanel';
 import { CombatLog } from './components/CombatLog';
 import { CombatStage } from './components/CombatStage';
 import { ConfigPanel } from './components/ConfigPanel';
+import { EquipmentPanel } from './components/EquipmentPanel';
 import { InventoryPanel } from './components/InventoryPanel';
 import { OfflineRewardsDialog } from './components/OfflineRewardsDialog';
 import { game } from './game';
@@ -73,6 +74,7 @@ function Game({ account, onSignOut }: { account: AccountInfo; onSignOut: () => v
       <main className="layout">
         <div className="column">
           <CharacterPanel />
+          <EquipmentPanel />
           <InventoryPanel />
         </div>
         <div className="column wide">

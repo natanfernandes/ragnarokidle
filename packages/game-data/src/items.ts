@@ -38,7 +38,7 @@ export const items: Record<string, ItemDefinition> = {
     name: 'Sword',
     category: 'equipment',
     sellPrice: 50,
-    equipment: { slot: 'weapon', viewId: 2, attack: 25 },
+    equipment: { slot: 'weapon', viewId: 2, attack: 25, requiredLevel: 2 },
   },
   cotton_shirt: {
     id: 'cotton_shirt',
