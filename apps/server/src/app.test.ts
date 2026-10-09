@@ -139,6 +139,36 @@ describe('server', () => {
     }
   });
 
+  it('equips and unequips items, mid-fight too', async () => {
+    app = await startApp();
+    const { socket, inbox } = await openGame(app, await signUp(app, 'Armorer'));
+    const initial = await inbox.next('state.snapshot');
+    expect(initial.character.equipment.weapon).toBe('knife');
+
+    send(socket, { type: 'combat.start', mapId: 'poring_field', requestId: 'start' });
+    await inbox.next('state.snapshot', (s) => s.requestId === 'start');
+
+    send(socket, { type: 'item.unequip', slot: 'weapon', requestId: 'off' });
+    const unarmed = await inbox.next('state.snapshot', (s) => s.requestId === 'off');
+    expect(unarmed.combat.active).toBe(true);
+    expect(unarmed.character.equipment.weapon).toBeUndefined();
+    expect(unarmed.character.inventory.knife).toBe(1);
+    expect(unarmed.derived.atk).toBeLessThan(initial.derived.atk);
+    expect(unarmed.assets.playerAppearance).not.toBe(initial.assets.playerAppearance);
+
+    send(socket, { type: 'item.equip', itemId: 'sword', requestId: 'sword' });
+    expect(await inbox.next('error', (e) => e.requestId === 'sword')).toMatchObject({
+      code: 'invalid_item',
+    });
+
+    send(socket, { type: 'item.equip', itemId: 'knife', requestId: 'on' });
+    const armed = await inbox.next('state.snapshot', (s) => s.requestId === 'on');
+    expect(armed.character.equipment.weapon).toBe('knife');
+    expect(armed.character.inventory.knife).toBeUndefined();
+    expect(armed.derived.atk).toBe(initial.derived.atk);
+    socket.terminate();
+  });
+
   it('rejects configs that reference unknown content', async () => {
     app = await startApp();
     const { socket, inbox } = await openGame(app, await signUp(app, 'Configurer'));

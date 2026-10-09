@@ -2,16 +2,25 @@ import { randomInt } from 'node:crypto';
 import {
   type CombatState,
   type SimulationStatistics,
+  EquipmentError,
   advanceCombat,
   createCombatState,
   deriveStats,
+  equipItem,
   nextScheduledAt,
   resumeCombat,
+  unequipItem,
   withCombatConfig,
 } from '@ragidle/combat-engine';
 import { gameData } from '@ragidle/game-data';
 import type { CombatSnapshot, OfflineRewards, ServerMessage } from '@ragidle/protocol';
-import type { CharacterState, CombatConfig, CombatEvent, DerivedStats } from '@ragidle/shared';
+import type {
+  CharacterState,
+  CombatConfig,
+  CombatEvent,
+  DerivedStats,
+  EquipmentSlot,
+} from '@ragidle/shared';
 import type { CharacterRepository, StoredCharacter } from '../characters/character-repository';
 import { SaveScheduler } from './save-scheduler';
 
@@ -25,7 +34,7 @@ export type SessionListener = (message: ServerMessage) => void;
 
 export class GameRuleError extends Error {
   constructor(
-    readonly code: 'invalid_state' | 'invalid_config' | 'unknown_map',
+    readonly code: 'invalid_state' | 'invalid_config' | 'unknown_map' | 'invalid_item',
     message: string,
   ) {
     super(message);
@@ -128,6 +137,14 @@ export class CombatSession {
     this.persist({ immediate: true });
   }
 
+  equip(itemId: string): void {
+    this.changeCharacter((character) => equipItem(character, itemId));
+  }
+
+  unequip(slot: EquipmentSlot): void {
+    this.changeCharacter((character) => unequipItem(character, slot));
+  }
+
   snapshot(): { character: CharacterState; derived: DerivedStats; combat: CombatSnapshot } {
     const character = this.currentCharacter();
     const monster = this.combat?.monster;
@@ -163,6 +180,21 @@ export class CombatSession {
     this.clearTimer();
     this.listeners.clear();
     return this.saves.flush();
+  }
+
+  /** Applies a player action to the character, mid-fight or not. */
+  private changeCharacter(change: (character: CharacterState) => CharacterState): void {
+    // Settle the fight first so the change applies from now on, not retroactively.
+    this.tick();
+    try {
+      const next = change(this.currentCharacter());
+      if (this.combat) this.combat = { ...this.combat, character: next };
+      else this.character = next;
+    } catch (error) {
+      if (error instanceof EquipmentError) throw new GameRuleError('invalid_item', error.message);
+      throw error;
+    }
+    this.persist({ immediate: true });
   }
 
   private currentCharacter(): CharacterState {

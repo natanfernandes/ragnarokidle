@@ -94,6 +94,12 @@ export class GameConnection {
       case 'combat.config.update':
         session.updateConfig(message.config);
         break;
+      case 'item.equip':
+        session.equip(message.itemId);
+        break;
+      case 'item.unequip':
+        session.unequip(message.slot);
+        break;
     }
     this.sendSnapshot(message.requestId);
   }

@@ -1,3 +1,4 @@
+import { EQUIPMENT_SLOTS } from '@ragidle/shared';
 import { z } from 'zod';
 
 const percentSchema = z.number().min(0).max(100);
@@ -50,6 +51,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('combat.start'), mapId: idSchema, requestId }),
   z.object({ type: z.literal('combat.stop'), requestId }),
   z.object({ type: z.literal('combat.config.update'), config: combatConfigSchema, requestId }),
+  z.object({ type: z.literal('item.equip'), itemId: idSchema, requestId }),
+  z.object({ type: z.literal('item.unequip'), slot: z.enum(EQUIPMENT_SLOTS), requestId }),
 ]);
 
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
