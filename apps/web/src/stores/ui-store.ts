@@ -1,38 +1,43 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-export type DockTab = 'automation' | 'bag' | 'character';
+/** Top-level screens reachable from the side navigation. */
+export type View = 'hunt' | 'character' | 'bag' | 'world';
+export type ConfigTab = 'general' | 'skills' | 'potions' | 'loot';
+export type LogTab = 'all' | 'loot' | 'system';
 
 interface UiState {
-  /** Tab shown in the dock on wide screens. Remembered between visits. */
-  dockTab: DockTab;
-  /** Panel open in the bottom sheet on phones, if any. */
-  sheet: DockTab | null;
+  view: View;
+  configTab: ConfigTab;
+  logTab: LogTab;
   /** Item count the player has already seen in the bag, for the "new" badge. */
   seenItemCount: number | null;
 
-  /** Shows a tab in the dock; on phones also opens it in the sheet. */
-  showTab(tab: DockTab, openSheet: boolean): void;
-  toggleSheet(tab: DockTab): void;
-  closeSheet(): void;
+  setView(view: View): void;
+  setConfigTab(tab: ConfigTab): void;
+  setLogTab(tab: LogTab): void;
   markItemsSeen(count: number): void;
 }
 
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
-      dockTab: 'automation',
-      sheet: null,
+      view: 'hunt',
+      configTab: 'general',
+      logTab: 'all',
       seenItemCount: null,
-      showTab: (tab, openSheet) => set(openSheet ? { dockTab: tab, sheet: tab } : { dockTab: tab }),
-      toggleSheet: (tab) => set((s) => ({ sheet: s.sheet === tab ? null : tab, dockTab: tab })),
-      closeSheet: () => set({ sheet: null }),
+      setView: (view) => set({ view }),
+      setConfigTab: (configTab) => set({ configTab }),
+      setLogTab: (logTab) => set({ logTab }),
       markItemsSeen: (count) => set({ seenItemCount: count }),
     }),
     {
       name: 'ragidle.ui',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ dockTab: s.dockTab }),
+      partialize: (s) => ({ view: s.view, configTab: s.configTab, logTab: s.logTab }),
+      // Version 1 stored the old dock tab; start fresh.
+      migrate: () => ({}),
     },
   ),
 );

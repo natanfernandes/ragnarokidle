@@ -26,22 +26,22 @@ export function Sheet(props: {
       role="dialog"
       aria-label={typeof props.title === 'string' ? props.title : undefined}
       className={cn(
-        'fixed inset-x-0 bottom-[calc(2.75rem+env(safe-area-inset-bottom,0px))] z-30 flex max-h-[60vh] flex-col overflow-hidden rounded-t-window border border-window-line bg-window text-ink shadow-window',
+        'fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-30 flex max-h-[60vh] flex-col overflow-hidden rounded-t-panel border border-line bg-surface text-text shadow-panel',
         props.className,
       )}
     >
-      <header className="flex items-center justify-between gap-3 bg-linear-to-b from-title-from to-title-to px-3 py-1.5 text-on-title">
-        <h2 className="m-0 font-display text-[15px] font-medium tracking-wide">{props.title}</h2>
+      <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <h2 className="m-0 text-[15px] font-semibold">{props.title}</h2>
         <button
           type="button"
           aria-label="Close"
           onClick={props.onClose}
-          className="cursor-pointer rounded-control px-1.5 text-lg leading-none hover:bg-white/15"
+          className="cursor-pointer rounded-control px-2 text-lg leading-none text-text-soft hover:bg-surface-raised hover:text-text"
         >
           ×
         </button>
       </header>
-      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto px-3 pt-2.5 pb-3">
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-4 pt-3 pb-4">
         {props.children}
       </div>
     </section>

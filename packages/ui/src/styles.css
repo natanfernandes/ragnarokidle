@@ -10,23 +10,29 @@
 @source './';
 
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
   html {
     font-family: var(--font-sans);
     font-size: 14px;
-    color: var(--color-ink);
+    color: var(--color-text);
   }
   body {
     min-height: 100vh;
-    background: radial-gradient(
-      1200px 600px at 50% -10%,
-      var(--color-ground-raised),
-      var(--color-ground)
-    );
-    color: var(--color-on-ground);
+    background: var(--color-bg);
+    color: var(--color-text);
   }
   :focus-visible {
-    outline: 2px solid var(--color-sp);
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  * {
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
   }
   @media (prefers-reduced-motion: reduce) {
     *,

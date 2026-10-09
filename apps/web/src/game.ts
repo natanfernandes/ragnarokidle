@@ -2,6 +2,7 @@ import type { CombatConfig } from '@ragidle/shared';
 import { GameClient } from './net/game-client';
 import { PresentationScheduler } from './presentation/presentation-scheduler';
 import { useGameStore } from './stores/game-store';
+import { useSessionStats } from './stores/session-stats';
 
 const DEV_NAME_KEY = 'ragidle.devName';
 
@@ -17,9 +18,10 @@ function devName(): string {
   }
 }
 
-const scheduler = new PresentationScheduler((event, { animate }) =>
-  useGameStore.getState().playEvent(event, animate),
-);
+const scheduler = new PresentationScheduler((event, { animate }) => {
+  useGameStore.getState().playEvent(event, animate);
+  useSessionStats.getState().record(event);
+});
 
 const client = new GameClient(`dev:${devName()}`, {
   onStatus: (status) => {

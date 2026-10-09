@@ -1,9 +1,6 @@
 import { Meter, type MeterKind } from '@ragidle/ui';
 
-/**
- * Meter with the legacy `bar` class, so the combat stage nameplates can keep
- * shrinking it from styles.css. New code should use Meter from @ragidle/ui.
- */
+/** Thin HP bar for the combat stage nameplates. */
 export function Bar(props: { value: number; max: number; kind: MeterKind; label?: string }) {
-  return <Meter {...props} className="bar" />;
+  return <Meter {...props} size="sm" className="bar" />;
 }

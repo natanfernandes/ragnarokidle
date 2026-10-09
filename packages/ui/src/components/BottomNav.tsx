@@ -1,11 +1,5 @@
-import type { ReactNode } from 'react';
 import { cn } from '../cn';
-
-export interface NavItem<T extends string = string> {
-  id: T;
-  label: ReactNode;
-  badge?: boolean;
-}
+import type { NavItem } from './SideNav';
 
 /** Phone navigation fixed to the bottom of the screen. */
 export function BottomNav<T extends string>(props: {
@@ -17,7 +11,7 @@ export function BottomNav<T extends string>(props: {
   return (
     <nav
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 border-t border-window-line bg-window pb-[env(safe-area-inset-bottom,0px)] shadow-window',
+        'fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg-deep pb-[env(safe-area-inset-bottom,0px)]',
         props.className,
       )}
     >
@@ -34,15 +28,16 @@ export function BottomNav<T extends string>(props: {
                 aria-current={active ? 'page' : undefined}
                 onClick={() => props.onSelect(item.id)}
                 className={cn(
-                  'relative h-11 w-full cursor-pointer font-display text-sm tracking-wide',
-                  active ? 'bg-title-to text-on-title' : 'text-ink-soft hover:text-ink',
+                  'relative flex h-14 w-full cursor-pointer flex-col items-center justify-center gap-0.5 text-[11px]',
+                  active ? 'text-primary' : 'text-text-soft hover:text-text',
                 )}
               >
+                {item.icon}
                 {item.label}
                 {item.badge && (
                   <span
                     aria-label="new"
-                    className="absolute top-1.5 right-[22%] size-2 rounded-full bg-card"
+                    className="absolute top-2 right-[30%] size-2 rounded-full bg-primary"
                   />
                 )}
               </button>

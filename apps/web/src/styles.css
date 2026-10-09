@@ -5,27 +5,40 @@
  * Tailwind utilities; this file keeps the combat stage, whose animations and
  * sprite positioning are not reusable UI. See docs/design-system.md.
  */
-:root {
-  --window-border: var(--color-window-line);
-}
-
 /* Combat stage */
 .stage {
   position: relative;
   /* Headroom so actors on the northern rows still fit. */
   padding: 130px 12px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-panel);
   overflow: hidden;
-  border: 1px solid var(--window-border);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-panel);
   background: linear-gradient(#9fd3f7, #c9ecff 90px, #6fae4f 90px, #5e9e42);
 }
 .stage-title {
   position: absolute;
-  top: 8px;
-  left: 10px;
-  font-weight: 600;
-  color: #1d3557;
-  text-shadow: 0 1px 0 #fff;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-bg-deep) 82%, transparent);
+  color: var(--color-text);
+  backdrop-filter: blur(4px);
+}
+.stage-title strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+.stage-title small {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-soft);
 }
 /* The field: one cell per background tile, x east and y north. */
 .field {
@@ -46,6 +59,24 @@
   align-items: center;
   transform: translate(-50%, -100%);
   pointer-events: none;
+}
+
+/* Portrait: the idle sprite framed in the top bar and character panels. */
+.portrait-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: 78%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+}
+.portrait-sm .rendered-sprite {
+  transform: translateX(-50%) scale(0.45);
+  transform-origin: 50% 85%;
+}
+.portrait-lg .rendered-sprite {
+  transform: translateX(-50%) scale(0.75);
+  transform-origin: 50% 85%;
 }
 .stage-hint {
   position: absolute;

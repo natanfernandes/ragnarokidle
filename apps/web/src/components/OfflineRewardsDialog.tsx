@@ -31,7 +31,7 @@ export function OfflineRewardsDialog() {
       </p>
       <ul className="m-0 list-disc pl-5 tabular-nums">
         <li>{rewards.kills.toLocaleString('en-US')} monsters defeated</li>
-        <li className="text-zeny">+{rewards.experience.toLocaleString('en-US')} XP</li>
+        <li className="text-success">+{rewards.experience.toLocaleString('en-US')} XP</li>
         {rewards.levels > 0 && <li className="font-semibold">+{rewards.levels} levels</li>}
         <li className="text-zeny">+{rewards.zeny.toLocaleString('en-US')} Zeny</li>
         {rewards.deaths > 0 && <li className="text-danger">{rewards.deaths} deaths</li>}

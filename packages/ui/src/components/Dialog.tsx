@@ -1,9 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Window } from './Window';
+import { Panel } from './Panel';
 
-/** Modal Window. Closes on Escape or a click on the backdrop. */
+/** Modal Panel. Closes on Escape or a click on the backdrop. */
 export function Dialog(props: {
   title: ReactNode;
+  icon?: ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
@@ -22,7 +23,7 @@ export function Dialog(props: {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-bg-deep/75 p-4 backdrop-blur-sm"
       onClick={props.onClose}
     >
       <div
@@ -33,10 +34,10 @@ export function Dialog(props: {
         className="w-full max-w-sm outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <Window title={props.title}>
+        <Panel title={props.title} icon={props.icon}>
           {props.children}
-          {props.footer && <div className="mt-2 flex justify-end gap-2">{props.footer}</div>}
-        </Window>
+          {props.footer && <div className="mt-1 flex justify-end gap-2">{props.footer}</div>}
+        </Panel>
       </div>
     </div>
   );

@@ -11,6 +11,8 @@ import {
 import { Bar } from './Bar';
 import { monsterSpriteUrl, playerSpriteUrl } from '../presentation/sprite-assets';
 import { ActorSprite } from './ActorSprite';
+import { mapLevelRange } from '../panels/map-info';
+import { MapPin } from 'lucide-react';
 
 const FLOATING_TEXT_MS = 1000;
 
@@ -124,7 +126,13 @@ export function CombatStage() {
 
   return (
     <section className="stage">
-      <div className="stage-title">{combat?.active && map ? map.name : 'Not farming'}</div>
+      <div className="stage-title">
+        <MapPin aria-hidden className="size-5 text-primary" />
+        <div>
+          <strong>{map?.name ?? 'Not farming'}</strong>
+          {map && <small>{combat?.active ? `Lv. ${mapLevelRange(map)}` : 'Not farming'}</small>}
+        </div>
+      </div>
       {map && (
         <div
           className="field"
