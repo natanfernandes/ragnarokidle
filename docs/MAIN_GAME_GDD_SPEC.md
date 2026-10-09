@@ -631,7 +631,11 @@ const result = simulateCombat({
 
 ```ts
 interface CombatConfig {
-  targetMode: 'nearest' | 'lowest_hp' | 'highest_xp' | 'specific';
+  targetMode:
+    | 'nearest'
+    | 'lowest_hp'
+    | 'highest_xp'
+    | 'specific';
 
   targetMonsterId?: string;
 
@@ -2037,7 +2041,7 @@ Use seeded or controlled RNG in the combat engine.
 
 ```ts
 simulate({
-  seed: 123456,
+  seed: 123456
 });
 ```
 
