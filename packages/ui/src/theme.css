@@ -1,0 +1,56 @@
+/*
+ * Ragnarok Idle design tokens ("Prontera Window").
+ * Every color, font, radius and shadow used by the UI comes from here.
+ * Tailwind turns each token into utilities, e.g. --color-hp -> bg-hp, text-hp.
+ * See docs/design-system.md before adding or changing a token.
+ */
+@theme {
+  /* Surfaces */
+  --color-ground: #161b2b;
+  --color-ground-raised: #2a3352;
+  --color-window: #f3f5fa;
+  --color-window-sunken: #fbfcfe;
+  --color-window-line: #c9d3e6;
+  --color-control: #ffffff;
+  --color-control-line: #aebcd6;
+  --color-control-shade: #dfe6f3;
+  --color-control-hover: #cdd8ee;
+  --color-title-from: #5a7cba;
+  --color-title-to: #36528a;
+
+  /* Text */
+  --color-ink: #23283a;
+  --color-ink-soft: #5d6580;
+  --color-ink-faint: #9aa2b8;
+  --color-on-ground: #e7ebf5;
+  --color-on-ground-soft: #9aa5c2;
+  --color-on-title: #ffffff;
+
+  /* Game semantics: follow Ragnarok Online conventions players already know */
+  --color-hp: #e0384f;
+  --color-sp: #3a7bdc;
+  --color-xp: #e0a92e;
+  --color-zeny: #a87700;
+  --color-loot: #1f63c6;
+  --color-card: #c23d8f;
+  --color-crit: #b8860b;
+  --color-miss: #3b8fc9;
+  --color-heal: #2f9e5a;
+  --color-danger: #c62828;
+  --color-meter-track: #cfd5e2;
+
+  /* Status */
+  --color-ok: #2e7d32;
+  --color-warn: #c98a00;
+  --color-bad: #c62828;
+
+  /* Type */
+  --font-display: 'Pixelify Sans', 'Trebuchet MS', system-ui, sans-serif;
+  --font-sans: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  /* Shape */
+  --radius-window: 6px;
+  --radius-control: 4px;
+  --shadow-window: 0 10px 30px -12px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.25);
+}
