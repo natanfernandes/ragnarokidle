@@ -9,6 +9,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/game': { target: serverUrl, ws: true },
+      '/auth': serverUrl,
       '/health': serverUrl,
       '/assets/render': serverUrl,
     },

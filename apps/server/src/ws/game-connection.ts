@@ -1,8 +1,13 @@
 import type { WebSocket } from 'ws';
 import type { FastifyBaseLogger } from 'fastify';
-import { type ClientMessage, type ServerMessage, parseClientMessage } from '@ragidle/protocol';
+import {
+  type ClientMessage,
+  type ServerMessage,
+  UNAUTHENTICATED_CLOSE_CODE,
+  parseClientMessage,
+} from '@ragidle/protocol';
 import { type AppearanceRegistry, appearanceOf } from '../assets/appearance';
-import { authenticate } from '../auth';
+import type { AuthenticatedPlayer } from '../auth/account-repository';
 import { type CombatSession, GameRuleError, type SessionListener } from '../game/combat-session';
 import type { SessionManager } from '../game/session-manager';
 import { RateLimiter } from './rate-limiter';
@@ -10,7 +15,10 @@ import { RateLimiter } from './rate-limiter';
 const MAX_MESSAGE_BYTES = 16 * 1024;
 const MAX_RATE_LIMIT_STRIKES = 50;
 
-/** One WebSocket client. Validates every message before touching game state. */
+/**
+ * One WebSocket client, authenticated by the session cookie it connected with.
+ * Validates every message before touching game state.
+ */
 export class GameConnection {
   private session: CombatSession | null = null;
   private readonly limiter: RateLimiter;
@@ -26,8 +34,14 @@ export class GameConnection {
     private readonly clock: () => number,
     private readonly log: FastifyBaseLogger,
     private readonly assets: { rendererEnabled: boolean; appearances: AppearanceRegistry },
+    player: Promise<AuthenticatedPlayer | null>,
   ) {
     this.limiter = new RateLimiter(20, 10, clock());
+    // Joining runs first in the queue, so messages sent meanwhile wait for it.
+    this.queue = this.join(player).catch((error: unknown) => {
+      this.log.error({ err: error }, 'Failed to open game session');
+      this.socket.close(1011, 'Internal error');
+    });
     socket.on('message', (data, isBinary) => this.onMessage(data.toString(), isBinary));
     socket.on('close', () => {
       this.closed = true;
@@ -65,11 +79,8 @@ export class GameConnection {
   }
 
   private async handle(message: ClientMessage): Promise<void> {
-    if (message.type === 'authenticate')
-      return this.onAuthenticate(message.token, message.requestId);
-
     const session = this.session;
-    if (!session) return this.error('unauthenticated', 'Authenticate first', message.requestId);
+    if (!session) return this.error('unauthenticated', 'Not logged in', message.requestId);
 
     switch (message.type) {
       case 'state.request':
@@ -87,23 +98,24 @@ export class GameConnection {
     this.sendSnapshot(message.requestId);
   }
 
-  private async onAuthenticate(token: string, requestId?: string): Promise<void> {
-    const player = authenticate(token);
-    if (!player) return this.error('unauthenticated', 'Invalid token', requestId);
-
-    this.session?.detach(this.listener);
-    this.session = null;
-    const session = await this.sessions.forPlayer(player);
+  private async join(pending: Promise<AuthenticatedPlayer | null>): Promise<void> {
+    const player = await pending;
+    if (!player) {
+      this.socket.close(UNAUTHENTICATED_CLOSE_CODE, 'Not logged in');
+      return;
+    }
+    const session = await this.sessions.forCharacter(player.characterId);
     // The socket may have closed while the character was loading.
     if (this.closed) return;
     this.session = session;
+    const offlineProgress = player.account.vip;
     this.send({
       type: 'authenticated',
       characterId: player.characterId,
+      offlineProgress,
       serverTime: this.clock(),
-      requestId,
     });
-    const rewards = session.attach(this.listener);
+    const rewards = session.attach(this.listener, { offlineProgress });
     if (rewards) this.send({ type: 'offline.rewards', rewards });
     this.sendSnapshot();
   }

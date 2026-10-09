@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import type { ServerMessage } from '@ragidle/protocol';
 import {
   MemoryAssetStore,
   RendererError,
@@ -8,6 +7,7 @@ import {
   SpriteService,
 } from '@ragidle/renderer-client';
 import { buildApp } from '../app';
+import { openGame, signUp } from '../test-support';
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
 
@@ -27,17 +27,10 @@ async function start(render: (request: RenderRequest) => Promise<Uint8Array>) {
   return { app, renderer };
 }
 
-/** Authenticates over WebSocket and returns the first state snapshot. */
+/** Signs up, opens the game and returns the first state snapshot. */
 async function snapshot(instance: FastifyInstance) {
-  const socket = await instance.injectWS('/game');
-  const message = new Promise<Extract<ServerMessage, { type: 'state.snapshot' }>>((resolve) => {
-    socket.on('message', (data) => {
-      const parsed = JSON.parse(data.toString()) as ServerMessage;
-      if (parsed.type === 'state.snapshot') resolve(parsed);
-    });
-  });
-  socket.send(JSON.stringify({ type: 'authenticate', token: 'dev:sprites' }));
-  const result = await message;
+  const { socket, inbox } = await openGame(instance, await signUp(instance, 'Sprites'));
+  const result = await inbox.next('state.snapshot');
   socket.terminate();
   return result;
 }

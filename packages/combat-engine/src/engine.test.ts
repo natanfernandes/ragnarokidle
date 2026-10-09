@@ -16,6 +16,7 @@ import {
   deriveStats,
   nextScheduledAt,
   physicalDamage,
+  resumeCombat,
   simulateCombat,
   withCombatConfig,
 } from './index';
@@ -305,6 +306,39 @@ describe('movement', () => {
     expect(ofType(events, 'player_respawn')[0]!.position).toEqual({ x: 8, y: 7 });
   });
 });
+
+describe('pausing', () => {
+  it('resumes a paused fight exactly where it stopped', () => {
+    const start = createCombatState({
+      character: swordman(),
+      mapId: 'poring_field',
+      startAt: START,
+      seed: 4,
+    });
+    const { state: paused } = advanceCombat(start, START + 7_300);
+    const pause = 3 * 3_600_000;
+
+    const resumed = resumeCombat(paused, paused.time + pause);
+    const later = advanceCombat(resumed, paused.time + pause + 60_000);
+    const uninterrupted = advanceCombat(paused, paused.time + 60_000);
+
+    // Same fights, just later: no rewards for the pause and nothing lost.
+    expect(later.events).toEqual(uninterrupted.events.map((e) => shiftEvent(e, pause)));
+    expect(later.state.character).toEqual({
+      ...uninterrupted.state.character,
+      lastSimulationAt: uninterrupted.state.character.lastSimulationAt + pause,
+    });
+    expect(later.state.statistics).toEqual(uninterrupted.state.statistics);
+  });
+});
+
+/** An event moved later in time by `ms`. */
+function shiftEvent(event: CombatEvent, ms: number): CombatEvent {
+  const shifted = { ...event, timestamp: event.timestamp + ms } as CombatEvent;
+  if (shifted.type === 'move') shifted.arriveAt += ms;
+  if (shifted.type === 'player_death') shifted.respawnAt += ms;
+  return shifted;
+}
 
 describe('combat strategy', () => {
   it('Bash consumes SP and deals more damage than basic attacks', () => {

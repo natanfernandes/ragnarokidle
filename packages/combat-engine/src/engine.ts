@@ -119,6 +119,42 @@ export function withCombatConfig(state: CombatState, config: CombatConfig): Comb
   return next;
 }
 
+/**
+ * Continues a paused fight at `at` as if no time had passed since it was last
+ * advanced: every scheduled time moves forward by the pause. Used when a
+ * player without offline progress comes back. Pure.
+ */
+export function resumeCombat(state: CombatState, at: number): CombatState {
+  const pause = at - state.time;
+  if (pause <= 0) return structuredClone(state);
+  const next = structuredClone(state);
+  const shift = (time: number) => time + pause;
+  const shiftMovement = (movement: Movement | null) =>
+    movement && {
+      ...movement,
+      startAt: shift(movement.startAt),
+      arriveAt: shift(movement.arriveAt),
+    };
+
+  next.time = at;
+  next.character.lastSimulationAt = at;
+  if (next.nextSpawnAt !== null) next.nextSpawnAt = shift(next.nextSpawnAt);
+  const player = next.player;
+  player.nextActionAt = shift(player.nextActionAt);
+  player.nextRegenAt = shift(player.nextRegenAt);
+  player.potionReadyAt = shift(player.potionReadyAt);
+  if (player.respawnAt !== null) player.respawnAt = shift(player.respawnAt);
+  for (const skillId of Object.keys(player.skillReadyAt)) {
+    player.skillReadyAt[skillId] = shift(player.skillReadyAt[skillId]!);
+  }
+  player.movement = shiftMovement(player.movement);
+  if (next.monster) {
+    next.monster.nextActionAt = shift(next.monster.nextActionAt);
+    next.monster.movement = shiftMovement(next.monster.movement);
+  }
+  return next;
+}
+
 type ActionKind = 'respawn' | 'spawn' | 'regen' | 'player' | 'monster';
 
 /** Order matters: it breaks ties between actions scheduled at the same instant. */
