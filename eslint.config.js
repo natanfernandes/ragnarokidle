@@ -17,12 +17,30 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/web/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
     languageOptions: {
       globals: { ...globals.browser },
     },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
+  },
+  {
+    // UI colors come from design tokens (packages/ui/src/theme.css), never from literals.
+    files: ['apps/web/src/**/*.tsx', 'packages/ui/src/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'JSXAttribute[name.name="className"] Literal[value=/#[0-9a-fA-F]{3,8}/]',
+          message: 'Use a design token from @ragidle/ui (see docs/design-system.md).',
+        },
+        {
+          selector:
+            'JSXAttribute[name.name="className"] TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}/]',
+          message: 'Use a design token from @ragidle/ui (see docs/design-system.md).',
+        },
+      ],
+    },
   },
   {
     // The combat engine must stay pure: no I/O, no clocks, no ambient randomness.

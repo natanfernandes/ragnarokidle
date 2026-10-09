@@ -1,0 +1,46 @@
+/*
+ * Entry stylesheet for apps that use @ragidle/ui.
+ * Import it once from the app's main stylesheet:
+ *   @import '@ragidle/ui/styles.css';
+ */
+@import 'tailwindcss';
+@import './theme.css';
+
+/* Make Tailwind generate the classes used inside this package's components. */
+@source './';
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--color-text);
+  }
+  body {
+    min-height: 100vh;
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  * {
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}

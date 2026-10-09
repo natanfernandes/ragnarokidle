@@ -2,10 +2,12 @@ import type { CombatConfig, EquipmentSlot } from '@ragidle/shared';
 import { GameClient } from './net/game-client';
 import { PresentationScheduler } from './presentation/presentation-scheduler';
 import { useGameStore } from './stores/game-store';
+import { useSessionStats } from './stores/session-stats';
 
-const scheduler = new PresentationScheduler((event, { animate }) =>
-  useGameStore.getState().playEvent(event, animate),
-);
+const scheduler = new PresentationScheduler((event, { animate }) => {
+  useGameStore.getState().playEvent(event, animate);
+  useSessionStats.getState().record(event);
+});
 
 const client = new GameClient({
   onStatus: (status) => {
