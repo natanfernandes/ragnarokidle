@@ -117,6 +117,15 @@ function placementFrom(
   };
 }
 
+/**
+ * Starts a walk for the time left in a snapshot taken mid-walk. A walk that is
+ * already playing is restarted for its remaining time, which is harmless.
+ */
+function walkingFrom(current: ActorAnimation, placement: StagePlacement | null): ActorAnimation {
+  if (!placement || placement.travelMs <= 0) return current;
+  return animation('walk', placement.travelMs);
+}
+
 const facing = (placement: StagePlacement, target: StagePlacement | null | undefined) =>
   target
     ? facingDirection(placement.position, target.position, placement.direction)
@@ -148,39 +157,60 @@ export const useGameStore = create<GameState>()((set, get) => ({
         return;
       case 'state.snapshot': {
         const { monster, player } = message.combat;
-        set((s) => ({
-          character: message.character,
-          derived: message.derived,
-          combat: message.combat,
-          assets: message.assets,
-          playerDead: message.combat.respawnAt !== null,
-          playerPlacement: player
+        set((s) => {
+          const playerPlacement = player
             ? placementFrom(
                 player,
                 message.serverTime,
                 s.playerPlacement?.direction ?? PLAYER_DEFAULT_DIRECTION,
               )
-            : s.playerPlacement,
-          monster: monster
-            ? {
-                instanceId: monster.instanceId,
-                monsterId: monster.monsterId,
-                hp: monster.hp,
-                maxHp: monster.maxHp,
-                dying: false,
-                placement: placementFrom(
-                  monster.placement,
-                  message.serverTime,
-                  s.monster?.instanceId === monster.instanceId
-                    ? s.monster.placement.direction
-                    : MONSTER_DEFAULT_DIRECTION,
-                ),
-              }
-            : s.monster?.dying
+            : s.playerPlacement;
+          // Instance ids restart with every fight, so a dying monster left over
+          // from the last one is never the monster in this snapshot.
+          const known =
+            monster && s.monster?.instanceId === monster.instanceId && !s.monster.dying
               ? s.monster
-              : null,
-          log: appendLog(s.log, coveredEvents),
-        }));
+              : null;
+          const monsterPlacement = monster
+            ? placementFrom(
+                monster.placement,
+                message.serverTime,
+                known?.placement.direction ?? MONSTER_DEFAULT_DIRECTION,
+              )
+            : null;
+          return {
+            character: message.character,
+            derived: message.derived,
+            combat: message.combat,
+            assets: message.assets,
+            playerDead: message.combat.respawnAt !== null,
+            playerPlacement,
+            // The move events behind a walk already under way may have been
+            // discarded as covered by this snapshot, so start the walk here.
+            playerAnimation: player
+              ? walkingFrom(s.playerAnimation, playerPlacement)
+              : s.playerAnimation,
+            // A monster first seen in a snapshot (its spawn event was covered by it)
+            // must not inherit the previous monster's animation, e.g. a death.
+            monsterAnimation: monsterPlacement
+              ? walkingFrom(known ? s.monsterAnimation : animation('idle'), monsterPlacement)
+              : s.monsterAnimation,
+            monster:
+              monster && monsterPlacement
+                ? {
+                    instanceId: monster.instanceId,
+                    monsterId: monster.monsterId,
+                    hp: monster.hp,
+                    maxHp: monster.maxHp,
+                    dying: false,
+                    placement: monsterPlacement,
+                  }
+                : s.monster?.dying
+                  ? s.monster
+                  : null,
+            log: appendLog(s.log, coveredEvents),
+          };
+        });
         return;
       }
       case 'offline.rewards':
