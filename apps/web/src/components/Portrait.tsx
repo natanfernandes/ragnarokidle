@@ -12,6 +12,7 @@ export function Portrait(props: { size: 'sm' | 'lg'; className?: string }) {
   const assets = useGameStore((s) => s.assets);
   const appearance = assets?.rendererEnabled ? assets.playerAppearance : null;
   const spriteUrl = useMemo(() => (appearance ? playerSpriteUrl(appearance) : null), [appearance]);
+  const armed = useGameStore((s) => !!s.character?.equipment.weapon);
 
   return (
     <div
@@ -29,6 +30,7 @@ export function Portrait(props: { size: 'sm' | 'lg'; className?: string }) {
           direction={0}
           placeholder={swordman.sprite}
           facing="right"
+          armed={armed}
         />
       </div>
     </div>

@@ -80,16 +80,3 @@ export const SLOT_ICON: Record<EquipmentSlot, LucideIcon> = {
   accessory1: Gem,
   accessory2: Gem,
 };
-
-export const SLOT_LABEL: Record<EquipmentSlot, string> = {
-  weapon: 'Weapon',
-  shield: 'Shield',
-  armor: 'Armor',
-  garment: 'Garment',
-  footgear: 'Footgear',
-  headTop: 'Upper headgear',
-  headMid: 'Middle headgear',
-  headLow: 'Lower headgear',
-  accessory1: 'Accessory',
-  accessory2: 'Accessory',
-};

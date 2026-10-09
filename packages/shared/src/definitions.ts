@@ -18,6 +18,20 @@ export const EQUIPMENT_SLOTS = [
 
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 
+/** Display names for equipment slots. */
+export const EQUIPMENT_SLOT_NAMES: Record<EquipmentSlot, string> = {
+  weapon: 'Weapon',
+  shield: 'Shield',
+  armor: 'Armor',
+  garment: 'Garment',
+  footgear: 'Footgear',
+  headTop: 'Upper headgear',
+  headMid: 'Middle headgear',
+  headLow: 'Lower headgear',
+  accessory1: 'Accessory',
+  accessory2: 'Accessory',
+};
+
 /** Slots that change how the character is drawn. */
 export const VISIBLE_EQUIPMENT_SLOTS = [
   'weapon',
@@ -53,6 +67,12 @@ export interface ItemDefinition {
     viewId?: number;
     attack?: number;
     defense?: number;
+    /** Added to the wearer's primary stats. */
+    stats?: Partial<Stats>;
+    /** Minimum base level to wear it. */
+    requiredLevel?: number;
+    /** Class ids that can wear it; every class when omitted. */
+    classes?: string[];
   };
 }
 

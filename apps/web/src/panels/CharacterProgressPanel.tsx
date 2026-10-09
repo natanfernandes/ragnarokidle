@@ -1,19 +1,22 @@
 import { experienceToNextLevel, gameData } from '@ragidle/game-data';
-import { EQUIPMENT_SLOTS, STAT_KEYS } from '@ragidle/shared';
+import { EQUIPMENT_SLOT_NAMES, EQUIPMENT_SLOTS, STAT_KEYS } from '@ragidle/shared';
 import { cn, Meter, Panel, SectionLabel, StatList } from '@ragidle/ui';
 import { Award } from 'lucide-react';
 import { Portrait } from '../components/Portrait';
 import { full } from '../presentation/format';
-import { SLOT_ICON, SLOT_LABEL, STAT_ICON, STAT_LABEL } from '../presentation/icons';
+import { SLOT_ICON, STAT_ICON, STAT_LABEL } from '../presentation/icons';
 import { useGameStore } from '../stores/game-store';
 
-/** Class, level, base stats and equipped items at a glance. */
-export function CharacterProgressPanel(props: { className?: string; showEmptySlots?: boolean }) {
+/**
+ * Class, level, base stats and, unless `showEquipment` is false, the items
+ * worn. The Character view lists equipment in its own panel instead.
+ */
+export function CharacterProgressPanel(props: { className?: string; showEquipment?: boolean }) {
   const character = useGameStore((s) => s.character);
   if (!character) return null;
   const toNext = experienceToNextLevel(character.level);
   const pct = (character.experience / toNext) * 100;
-  const slots = EQUIPMENT_SLOTS.filter((slot) => props.showEmptySlots || character.equipment[slot]);
+  const slots = EQUIPMENT_SLOTS.filter((slot) => character.equipment[slot]);
 
   return (
     <Panel
@@ -56,33 +59,35 @@ export function CharacterProgressPanel(props: { className?: string; showEmptySlo
         })}
       />
 
-      <div className="flex flex-col gap-2">
-        <SectionLabel>Equipment</SectionLabel>
-        <ul className="m-0 grid list-none grid-cols-5 gap-2 p-0">
-          {slots.map((slot) => {
-            const itemId = character.equipment[slot];
-            const Icon = SLOT_ICON[slot];
-            const name = itemId ? (gameData.items[itemId]?.name ?? itemId) : 'Empty';
-            return (
-              <li
-                key={slot}
-                title={`${SLOT_LABEL[slot]}: ${name}`}
-                className={cn(
-                  'grid aspect-square place-items-center rounded-control border bg-surface-sunken',
-                  itemId
-                    ? 'border-line-strong text-loot'
-                    : 'border-dashed border-line text-text-faint',
-                )}
-              >
-                <Icon aria-hidden className="size-5" />
-                <span className="sr-only">
-                  {SLOT_LABEL[slot]}: {name}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {props.showEquipment !== false && slots.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>Equipment</SectionLabel>
+          <ul className="m-0 grid list-none grid-cols-5 gap-2 p-0">
+            {slots.map((slot) => {
+              const itemId = character.equipment[slot];
+              const Icon = SLOT_ICON[slot];
+              const name = itemId ? (gameData.items[itemId]?.name ?? itemId) : 'Empty';
+              return (
+                <li
+                  key={slot}
+                  title={`${EQUIPMENT_SLOT_NAMES[slot]}: ${name}`}
+                  className={cn(
+                    'grid aspect-square place-items-center rounded-control border bg-surface-sunken',
+                    itemId
+                      ? 'border-line-strong text-loot'
+                      : 'border-dashed border-line text-text-faint',
+                  )}
+                >
+                  <Icon aria-hidden className="size-5" />
+                  <span className="sr-only">
+                    {EQUIPMENT_SLOT_NAMES[slot]}: {name}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </Panel>
   );
 }

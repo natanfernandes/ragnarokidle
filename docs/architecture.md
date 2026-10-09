@@ -43,6 +43,12 @@ small walkable grid with A* only for blocked straight lines can slot into
 Formulas live in `formulas.ts` and are placeholders to be tuned with
 `pnpm simulate`.
 
+Equipment (`equipment.ts`) is data-driven: an item's `equipment` block gives
+its slot, ATK/DEF, primary stat bonuses, required level and allowed classes.
+`equipItem` and `unequipItem` are pure and move items between the inventory and
+the slots; whatever was worn goes back to the inventory. `deriveStats` adds the
+bonuses, so a change takes effect on the next simulated action.
+
 ## Server (`apps/server`)
 
 - `CombatSession` owns one character's combat. While a client is connected, a
@@ -59,6 +65,9 @@ Formulas live in `formulas.ts` and are placeholders to be tuned with
     rewards and no losses for the time away.
 - Every client message is validated with zod (`packages/protocol`), rate
   limited, and checked against game rules (`GameRuleError`).
+- `item.equip` / `item.unequip` work mid-fight: the session first settles the
+  fight up to now, then changes the character, so the change is never applied
+  retroactively. The new snapshot carries the new sprite key.
 
 ### Accounts and sessions
 
@@ -130,7 +139,7 @@ migrations on PGlite, an in-process PostgreSQL.
 
 ## Not done yet (by design, see spec section 78)
 
-1. Equipment changes, stat allocation, more content
+1. Stat allocation, more content (cards, refines, shields and two-handed weapons)
 2. Target selection modes (only single encounters exist so far)
 3. Password reset, email verification and OAuth sign-in
 4. Batched / statistical offline simulation for very long VIP absences

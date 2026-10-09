@@ -1,4 +1,4 @@
-import type { CombatConfig } from '@ragidle/shared';
+import type { CombatConfig, EquipmentSlot } from '@ragidle/shared';
 import { GameClient } from './net/game-client';
 import { PresentationScheduler } from './presentation/presentation-scheduler';
 import { useGameStore } from './stores/game-store';
@@ -35,4 +35,6 @@ export const game = {
   startCombat: (mapId: string) => client.send({ type: 'combat.start', mapId }),
   stopCombat: () => client.send({ type: 'combat.stop' }),
   updateConfig: (config: CombatConfig) => client.send({ type: 'combat.config.update', config }),
+  equip: (itemId: string) => client.send({ type: 'item.equip', itemId }),
+  unequip: (slot: EquipmentSlot) => client.send({ type: 'item.unequip', slot }),
 };

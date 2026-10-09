@@ -55,6 +55,7 @@ export type ServerErrorCode =
   | 'invalid_state'
   | 'invalid_config'
   | 'unknown_map'
+  | 'invalid_item'
   | 'rate_limited';
 
 export type ServerMessage =
