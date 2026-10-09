@@ -78,73 +78,84 @@ export class PostgresCharacterRepository implements CharacterRepository {
     });
   }
 
-  async save({ character: c, combat }: StoredCharacter): Promise<void> {
-    const id = c.id;
-    const row = {
-      id,
-      name: c.name,
-      classId: c.classId,
-      level: c.level,
-      experience: c.experience,
-      zeny: c.zeny,
-      hp: c.hp,
-      sp: c.sp,
-      currentMapId: c.currentMapId,
-      gender: c.appearance.gender,
-      hairStyle: c.appearance.hairStyle,
-      hairColor: c.appearance.hairColor,
-      clothesColor: c.appearance.clothesColor,
-      lastSimulationAt: c.lastSimulationAt,
+  async save(stored: StoredCharacter): Promise<void> {
+    await this.db.transaction((tx) => saveCharacter(tx, stored));
+  }
+}
+
+/**
+ * Writes a character and its fight inside an open transaction, so callers such
+ * as account creation can save it together with their own rows.
+ */
+export async function saveCharacter(
+  tx: Database,
+  { character: c, combat }: StoredCharacter,
+  options: { accountId?: string } = {},
+): Promise<void> {
+  const id = c.id;
+  const row = {
+    id,
+    name: c.name,
+    classId: c.classId,
+    level: c.level,
+    experience: c.experience,
+    zeny: c.zeny,
+    hp: c.hp,
+    sp: c.sp,
+    currentMapId: c.currentMapId,
+    gender: c.appearance.gender,
+    hairStyle: c.appearance.hairStyle,
+    hairColor: c.appearance.hairColor,
+    clothesColor: c.appearance.clothesColor,
+    lastSimulationAt: c.lastSimulationAt,
+    updatedAt: new Date(),
+  };
+  const stats = { characterId: id, ...c.baseStats };
+  // The owner is set when the character is created and never changed by saves.
+  await tx
+    .insert(characters)
+    .values({ ...row, accountId: options.accountId })
+    .onConflictDoUpdate({ target: characters.id, set: row });
+  await tx
+    .insert(characterStats)
+    .values(stats)
+    .onConflictDoUpdate({ target: characterStats.characterId, set: stats });
+  await tx
+    .insert(combatConfigs)
+    .values({ characterId: id, config: c.combatConfig })
+    .onConflictDoUpdate({ target: combatConfigs.characterId, set: { config: c.combatConfig } });
+
+  // Equipment and inventory are small, so they are replaced wholesale.
+  await tx.delete(characterEquipment).where(eq(characterEquipment.characterId, id));
+  const equipped = Object.entries(c.equipment).filter(([, itemId]) => itemId);
+  if (equipped.length > 0) {
+    await tx
+      .insert(characterEquipment)
+      .values(equipped.map(([slot, itemId]) => ({ characterId: id, slot, itemId: itemId! })));
+  }
+  await tx.delete(inventoryItems).where(eq(inventoryItems.characterId, id));
+  const items = Object.entries(c.inventory).filter(([, quantity]) => quantity > 0);
+  if (items.length > 0) {
+    await tx
+      .insert(inventoryItems)
+      .values(items.map(([itemId, quantity]) => ({ characterId: id, itemId, quantity })));
+  }
+
+  if (combat) {
+    // The character is already stored in its own tables.
+    const state: Partial<CombatState> = { ...combat };
+    delete state.character;
+    const session = {
+      mapId: combat.mapId,
+      state: state as StoredCombat,
+      simulatedAt: combat.time,
       updatedAt: new Date(),
     };
-    const stats = { characterId: id, ...c.baseStats };
-    await this.db.transaction(async (tx) => {
-      await tx
-        .insert(characters)
-        .values(row)
-        .onConflictDoUpdate({ target: characters.id, set: row });
-      await tx
-        .insert(characterStats)
-        .values(stats)
-        .onConflictDoUpdate({ target: characterStats.characterId, set: stats });
-      await tx
-        .insert(combatConfigs)
-        .values({ characterId: id, config: c.combatConfig })
-        .onConflictDoUpdate({ target: combatConfigs.characterId, set: { config: c.combatConfig } });
-
-      // Equipment and inventory are small, so they are replaced wholesale.
-      await tx.delete(characterEquipment).where(eq(characterEquipment.characterId, id));
-      const equipped = Object.entries(c.equipment).filter(([, itemId]) => itemId);
-      if (equipped.length > 0) {
-        await tx
-          .insert(characterEquipment)
-          .values(equipped.map(([slot, itemId]) => ({ characterId: id, slot, itemId: itemId! })));
-      }
-      await tx.delete(inventoryItems).where(eq(inventoryItems.characterId, id));
-      const items = Object.entries(c.inventory).filter(([, quantity]) => quantity > 0);
-      if (items.length > 0) {
-        await tx
-          .insert(inventoryItems)
-          .values(items.map(([itemId, quantity]) => ({ characterId: id, itemId, quantity })));
-      }
-
-      if (combat) {
-        // The character is already stored in its own tables.
-        const state: Partial<CombatState> = { ...combat };
-        delete state.character;
-        const session = {
-          mapId: combat.mapId,
-          state: state as StoredCombat,
-          simulatedAt: combat.time,
-          updatedAt: new Date(),
-        };
-        await tx
-          .insert(combatSessions)
-          .values({ characterId: id, ...session })
-          .onConflictDoUpdate({ target: combatSessions.characterId, set: session });
-      } else {
-        await tx.delete(combatSessions).where(eq(combatSessions.characterId, id));
-      }
-    });
+    await tx
+      .insert(combatSessions)
+      .values({ characterId: id, ...session })
+      .onConflictDoUpdate({ target: combatSessions.characterId, set: session });
+  } else {
+    await tx.delete(combatSessions).where(eq(combatSessions.characterId, id));
   }
 }

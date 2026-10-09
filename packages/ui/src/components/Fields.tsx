@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react';
+import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '../cn';
 
 /** On/off switch. */
@@ -133,5 +133,18 @@ export function Field(props: { label: ReactNode; htmlFor?: string; children: Rea
       </label>
       {props.children}
     </div>
+  );
+}
+
+/** Single-line text input with the design system look. */
+export function TextInput({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      className={cn(
+        'w-full rounded-control border border-line bg-surface-sunken px-3 py-2 text-sm text-text placeholder:text-text-faint hover:border-line-strong',
+        className,
+      )}
+      {...rest}
+    />
   );
 }

@@ -12,6 +12,7 @@ const STATUS_TEXT: Record<ConnectionStatus, string> = {
   connected: 'Online',
   connecting: 'Connecting',
   disconnected: 'Offline',
+  unauthenticated: 'Signed out',
 };
 
 /** Always-visible character summary: who, HP/SP, Zeny and farming state. */

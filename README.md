@@ -1,7 +1,8 @@
 # Ragnarok Idle
 
 A web idle RPG inspired by Ragnarok Online. You configure a character's
-farming strategy and the server simulates combat, including while you are away.
+farming strategy and the server simulates combat while the game is open (VIP
+accounts keep progressing while away).
 
 The server is authoritative: a pure, deterministic combat engine produces
 discrete events, and the browser only presents them.
@@ -20,7 +21,9 @@ pnpm dev                                     # server on :3001, web on http://lo
 The server applies database migrations on startup. Without `DATABASE_URL`
 it still runs, but keeps characters in memory and forgets them on restart.
 
-Open http://localhost:5173 and click **Farm Poring Meadow**.
+Open http://localhost:5173, create an account (email, password and character
+name), and click **Farm Poring Meadow**. To try VIP offline progress locally:
+`UPDATE accounts SET vip = true WHERE email = '...';`
 
 In development, sprites come from the public ragassets instance. See
 [docs/renderer.md](docs/renderer.md) to self-host a renderer or use

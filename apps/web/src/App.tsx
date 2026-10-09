@@ -1,11 +1,24 @@
 import { gameData } from '@ragidle/game-data';
-import { BottomNav, type NavItem, SideNav, useHotkeys } from '@ragidle/ui';
-import { Backpack, Map as MapIcon, Swords, User } from 'lucide-react';
-import { useEffect } from 'react';
+import type { AccountInfo } from '@ragidle/protocol';
+import {
+  Alert,
+  Badge,
+  BottomNav,
+  Button,
+  cn,
+  type NavItem,
+  SideNav,
+  useHotkeys,
+} from '@ragidle/ui';
+import { Backpack, LogOut, Map as MapIcon, Swords, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AuthScreen } from './components/AuthScreen';
 import { OfflineRewardsDialog } from './components/OfflineRewardsDialog';
 import { TopBar } from './components/TopBar';
 import { game } from './game';
+import { authApi } from './net/auth-api';
 import { useGameStore } from './stores/game-store';
+import { useSessionStats } from './stores/session-stats';
 import { useUiStore, type View } from './stores/ui-store';
 import { BagView } from './views/BagView';
 import { CharacterView } from './views/CharacterView';
@@ -19,20 +32,49 @@ const VIEWS: { id: View; label: string; hotkey: string; Icon: typeof Swords }[] 
   { id: 'world', label: 'World', hotkey: 'Alt+M', Icon: MapIcon },
 ];
 
+export function App() {
+  // Undefined while the session cookie is being checked.
+  const [account, setAccount] = useState<AccountInfo | null | undefined>(undefined);
+  // The server rejected the session (expired or signed out elsewhere).
+  const rejected = useGameStore((s) => s.status === 'unauthenticated');
+
+  useEffect(() => {
+    authApi.me().then(setAccount, () => setAccount(null));
+  }, []);
+
+  const signIn = (next: AccountInfo) => {
+    useGameStore.getState().setStatus('disconnected');
+    setAccount(next);
+  };
+
+  if (account === undefined) return null;
+  if (account === null || rejected) return <AuthScreen onSignedIn={signIn} />;
+  return (
+    <Game
+      account={account}
+      onSignOut={async () => {
+        await authApi.logout();
+        setAccount(null);
+      }}
+    />
+  );
+}
+
 /**
  * Shell: side navigation (bottom bar on phones), the character top bar, and
  * the current view. See docs/design-system.md for the layout rules.
  */
-export function App() {
+function Game({ account, onSignOut }: { account: AccountInfo; onSignOut: () => void }) {
   const lastError = useGameStore((s) => s.lastError);
   const view = useUiStore((s) => s.view);
   const setView = useUiStore((s) => s.setView);
   const bagBadge = useBagBadge(view === 'bag');
 
   useEffect(() => {
+    useSessionStats.getState().reset();
     game.connect();
     return () => game.disconnect();
-  }, []);
+  }, [account.id]);
 
   useHotkeys({
     'Alt+H': () => setView('hunt'),
@@ -57,7 +99,10 @@ export function App() {
         <aside className="sticky top-0 flex h-screen flex-col gap-8 px-4 py-6">
           <Logo />
           <SideNav items={items} value={view} onSelect={setView} aria-label="Game" />
-          <ShortcutHint />
+          <div className="mt-auto flex flex-col gap-3">
+            <ShortcutHint />
+            <AccountCard email={account.email} onSignOut={onSignOut} />
+          </div>
         </aside>
       </div>
 
@@ -65,20 +110,14 @@ export function App() {
         <div className="z-20 lg:sticky lg:top-0">
           <TopBar />
         </div>
-        {lastError && (
-          <div
-            role="alert"
-            className="mx-4 mt-4 rounded-control border border-danger/40 bg-danger/15 px-3 py-2 text-danger lg:mx-6"
-          >
-            {lastError}
-          </div>
-        )}
+        {lastError && <Alert className="mx-4 mt-4 lg:mx-6">{lastError}</Alert>}
         <main className="p-4 lg:p-6">
           {view === 'hunt' && <HuntView />}
           {view === 'character' && <CharacterView />}
           {view === 'bag' && <BagView />}
           {view === 'world' && <WorldView />}
         </main>
+        <AccountCard email={account.email} onSignOut={onSignOut} className="mx-4 mb-4 lg:hidden" />
       </div>
 
       <BottomNav items={items} value={view} onSelect={setView} className="lg:hidden" />
@@ -102,7 +141,7 @@ function Logo() {
 
 function ShortcutHint() {
   return (
-    <div className="mt-auto rounded-control border border-line bg-surface/60 p-3 text-xs text-text-soft">
+    <div className="rounded-control border border-line bg-surface/60 p-3 text-xs text-text-soft">
       <p className="m-0 mb-2 font-semibold text-text">Shortcuts</p>
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         {VIEWS.map((v) => (
@@ -114,6 +153,34 @@ function ShortcutHint() {
         <dt className="font-mono text-text-faint">Space</dt>
         <dd className="m-0">Start / stop</dd>
       </dl>
+    </div>
+  );
+}
+
+/** Signed-in account, VIP state and sign out. */
+function AccountCard(props: { email: string; onSignOut: () => void; className?: string }) {
+  const offlineProgress = useGameStore((s) => s.offlineProgress);
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-2 rounded-control border border-line bg-surface/60 p-3 text-xs text-text-soft',
+        props.className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-text" title={props.email}>
+          {props.email}
+        </span>
+        {offlineProgress && <Badge tone="primary">VIP</Badge>}
+      </div>
+      <p className="m-0">
+        {offlineProgress
+          ? 'Your character keeps fighting while you are away.'
+          : 'Keep this tab open to progress. VIP keeps fighting offline.'}
+      </p>
+      <Button variant="ghost" size="sm" onClick={props.onSignOut} className="self-start">
+        <LogOut className="size-4" /> Sign out
+      </Button>
     </div>
   );
 }

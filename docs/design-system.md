@@ -62,10 +62,12 @@ titles. Panel titles, character names and body text use Inter.
 | `Button`                       | `primary` (gold), `secondary` (outline), `ghost`; `sm`, `md`, `icon` |
 | `Toggle`, `ToggleRow`          | Switch, and a setting row with icon, label, inline fields and switch |
 | `Select`, `Field`              | Styled native select with an optional icon; label above a control    |
+| `TextInput`                    | Single-line text input (email, password, names)                      |
 | `PercentField`                 | 0-100 integer input with a `%` suffix                                |
 | `StatList`                     | Label / value rows with optional icons, one or two columns           |
 | `StatTile`                     | Headline number with its label (`stack`) or icon row (`row`)         |
 | `Badge`                        | Small status label: `primary`, `success`, `warn`, `danger`, `info`   |
+| `Alert`                        | Inline error message with `role="alert"`                             |
 | `SideNav`                      | Vertical navigation; the active item is filled with gold             |
 | `BottomNav`                    | Phone navigation fixed to the bottom, with icons and badges          |
 | `Sheet`                        | Phone panel rising above `BottomNav`, capped at 60% of the screen    |
@@ -100,7 +102,8 @@ inside `@ragidle/ui` are always generated.
 Wide screens (`lg` and up):
 
 - **Side navigation** on the left: logo, one entry per screen (Hunt,
-  Character, Bag, World) and the shortcut list.
+  Character, Bag, World), the shortcut list and the account card (email, VIP
+  state, sign out).
 - **Top bar** across the content: portrait, class and level with XP, HP and
   SP, Zeny, and the farming state with its timer. It stays visible on every
   screen.
@@ -109,7 +112,10 @@ Wide screens (`lg` and up):
   progress sit below.
 
 Phones: the side navigation becomes a `BottomNav`, the top bar scrolls with
-the page, and panels stack in the same order.
+the page, panels stack in the same order and the account card closes the page.
+
+Signed out, the sign-in screen shows the logo over a `Panel` with `Tabs`
+(Sign in, Create account), `Field`s and a primary `Button`.
 
 Rules:
 

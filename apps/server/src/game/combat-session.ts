@@ -6,6 +6,7 @@ import {
   createCombatState,
   deriveStats,
   nextScheduledAt,
+  resumeCombat,
   withCombatConfig,
 } from '@ragidle/combat-engine';
 import { gameData } from '@ragidle/game-data';
@@ -14,7 +15,10 @@ import type { CharacterState, CombatConfig, CombatEvent, DerivedStats } from '@r
 import type { CharacterRepository, StoredCharacter } from '../characters/character-repository';
 import { SaveScheduler } from './save-scheduler';
 
-/** Gaps shorter than this are streamed as live events instead of an offline summary. */
+/**
+ * Gaps shorter than this (a reload, a network blip) are simulated and streamed
+ * as live events for everyone; longer ones are offline time.
+ */
 export const OFFLINE_THRESHOLD_MS = 10_000;
 
 export type SessionListener = (message: ServerMessage) => void;
@@ -70,8 +74,13 @@ export class CombatSession {
   }
 
   /** Registers a listener and settles any time that passed while nobody watched. */
-  attach(listener: SessionListener): OfflineRewards | null {
-    const rewards = this.catchUp();
+  /**
+   * Registers a listener and settles any time that passed while nobody watched:
+   * with `offlineProgress` (VIP) that time is simulated and rewarded; without
+   * it the fight was paused and simply continues.
+   */
+  attach(listener: SessionListener, options: { offlineProgress: boolean }): OfflineRewards | null {
+    const rewards = this.catchUp(options.offlineProgress);
     this.listeners.add(listener);
     this.schedule();
     return rewards;
@@ -80,6 +89,8 @@ export class CombatSession {
   detach(listener: SessionListener): void {
     this.listeners.delete(listener);
     if (this.listeners.size === 0) {
+      // Settle everything up to now; whether the time away counts is decided on return.
+      this.tick();
       this.clearTimer();
       void this.saves.flush();
     }
@@ -169,11 +180,17 @@ export class CombatSession {
     this.schedule();
   }
 
-  private catchUp(): OfflineRewards | null {
+  private catchUp(offlineProgress: boolean): OfflineRewards | null {
     if (!this.combat) return null;
     const now = this.deps.clock();
     const elapsedMs = now - this.combat.time;
     if (elapsedMs < OFFLINE_THRESHOLD_MS) return null;
+
+    if (!offlineProgress) {
+      this.combat = resumeCombat(this.combat, now);
+      this.persist({ immediate: true });
+      return null;
+    }
 
     const simulatedMs = Math.min(elapsedMs, this.deps.maxOfflineMs);
     const before = this.combat.statistics;

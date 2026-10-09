@@ -46,7 +46,6 @@ export const combatConfigSchema = z.object({
 const requestId = z.string().max(64).optional();
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('authenticate'), token: z.string().min(1).max(512), requestId }),
   z.object({ type: z.literal('state.request'), requestId }),
   z.object({ type: z.literal('combat.start'), mapId: idSchema, requestId }),
   z.object({ type: z.literal('combat.stop'), requestId }),

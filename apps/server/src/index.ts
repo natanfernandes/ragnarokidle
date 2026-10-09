@@ -2,7 +2,11 @@ import { buildApp } from './app';
 import { loadConfig } from './config';
 
 const config = loadConfig();
-const app = await buildApp({ config, logger: true });
+const app = await buildApp({
+  config,
+  logger: true,
+  secureCookies: process.env.NODE_ENV === 'production',
+});
 
 const shutdown = async () => {
   await app.close();

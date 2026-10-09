@@ -4,29 +4,15 @@ import { PresentationScheduler } from './presentation/presentation-scheduler';
 import { useGameStore } from './stores/game-store';
 import { useSessionStats } from './stores/session-stats';
 
-const DEV_NAME_KEY = 'ragidle.devName';
-
-function devName(): string {
-  try {
-    const stored = localStorage.getItem(DEV_NAME_KEY);
-    if (stored) return stored;
-    const name = `hero${Math.floor(Math.random() * 10_000)}`;
-    localStorage.setItem(DEV_NAME_KEY, name);
-    return name;
-  } catch {
-    return 'hero';
-  }
-}
-
 const scheduler = new PresentationScheduler((event, { animate }) => {
   useGameStore.getState().playEvent(event, animate);
   useSessionStats.getState().record(event);
 });
 
-const client = new GameClient(`dev:${devName()}`, {
+const client = new GameClient({
   onStatus: (status) => {
     useGameStore.getState().setStatus(status);
-    if (status === 'disconnected') scheduler.reset();
+    if (status !== 'connected' && status !== 'connecting') scheduler.reset();
   },
   onMessage: (message) => {
     const store = useGameStore.getState();

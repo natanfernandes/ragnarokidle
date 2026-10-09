@@ -58,7 +58,13 @@ export type ServerErrorCode =
   | 'rate_limited';
 
 export type ServerMessage =
-  | { type: 'authenticated'; characterId: string; serverTime: number; requestId?: string }
+  | {
+      type: 'authenticated';
+      characterId: string;
+      /** Whether the fight keeps going while no browser is open. */
+      offlineProgress: boolean;
+      serverTime: number;
+    }
   | {
       type: 'state.snapshot';
       serverTime: number;

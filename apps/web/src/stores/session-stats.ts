@@ -23,14 +23,13 @@ interface SessionStats {
 
   record(event: CombatEvent): void;
   setFarming(active: boolean): void;
+  /** Clears every total, e.g. when another account signs in. */
+  reset(): void;
 }
 
-/**
- * Totals of what the player has seen happen since the page loaded. Rates
- * shown in "Live results" are derived from these. Presentation only: the
- * server stays the source of truth for the character.
- */
-export const useSessionStats = create<SessionStats>()((set) => ({
+type Totals = Omit<SessionStats, 'record' | 'setFarming' | 'reset'>;
+
+const EMPTY: Totals = {
   startedAt: null,
   experience: 0,
   zeny: 0,
@@ -39,6 +38,15 @@ export const useSessionStats = create<SessionStats>()((set) => ({
   deaths: 0,
   recentDrops: [],
   farmingSince: null,
+};
+
+/**
+ * Totals of what the player has seen happen since the page loaded. Rates
+ * shown in "Live results" are derived from these. Presentation only: the
+ * server stays the source of truth for the character.
+ */
+export const useSessionStats = create<SessionStats>()((set) => ({
+  ...EMPTY,
 
   record: (event) =>
     set((s) => {
@@ -71,6 +79,8 @@ export const useSessionStats = create<SessionStats>()((set) => ({
 
   setFarming: (active) =>
     set((s) => ({ farmingSince: active ? (s.farmingSince ?? Date.now()) : null })),
+
+  reset: () => set(EMPTY),
 }));
 
 /** Amount per minute since the session started; at least one minute is assumed. */

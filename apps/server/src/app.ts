@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import cookie from '@fastify/cookie';
 import websocket from '@fastify/websocket';
 import { GAME_SOCKET_PATH } from '@ragidle/protocol';
 import {
@@ -9,21 +10,26 @@ import {
 } from '@ragidle/renderer-client';
 import { AppearanceRegistry } from './assets/appearance';
 import { registerSpriteRoutes } from './assets/sprite-routes';
+import { type AccountRepository, InMemoryAccountRepository } from './auth/account-repository';
+import { playerFromRequest, registerAuthRoutes } from './auth/auth-routes';
+import { PostgresAccountRepository } from './auth/postgres-account-repository';
 import {
   type CharacterRepository,
   InMemoryCharacterRepository,
 } from './characters/character-repository';
 import { PostgresCharacterRepository } from './characters/postgres-character-repository';
 import type { ServerConfig } from './config';
-import { connectDatabase } from './db/database';
+import { type Database, connectDatabase } from './db/database';
 import { SessionManager } from './game/session-manager';
 import { GameConnection } from './ws/game-connection';
 
 export interface AppOptions {
   config: Pick<ServerConfig, 'maxOfflineMs'> &
     Partial<Pick<ServerConfig, 'renderer' | 'databaseUrl'>>;
-  /** Overrides the repository built from `config.databaseUrl` (used by tests). */
-  repository?: CharacterRepository;
+  /** Overrides the database built from `config.databaseUrl` (tests pass PGlite). */
+  database?: Database;
+  /** Send the session cookie over HTTPS only. */
+  secureCookies?: boolean;
   saveIntervalMs?: number;
   clock?: () => number;
   logger?: boolean;
@@ -45,16 +51,23 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const clock = options.clock ?? Date.now;
   const app = Fastify({ logger: options.logger ?? false });
 
-  let repository = options.repository;
+  let database = options.database;
   let closeDatabase: (() => Promise<void>) | null = null;
-  if (!repository && options.config.databaseUrl) {
-    const database = await connectDatabase(options.config.databaseUrl);
-    repository = new PostgresCharacterRepository(database.db);
-    closeDatabase = database.close;
+  if (!database && options.config.databaseUrl) {
+    const connection = await connectDatabase(options.config.databaseUrl);
+    database = connection.db;
+    closeDatabase = connection.close;
   }
-  if (!repository) {
-    app.log.warn('DATABASE_URL is not set: characters are kept in memory and lost on restart');
-    repository = new InMemoryCharacterRepository();
+  let repository: CharacterRepository;
+  let accounts: AccountRepository;
+  if (database) {
+    repository = new PostgresCharacterRepository(database);
+    accounts = new PostgresAccountRepository(database);
+  } else {
+    app.log.warn('DATABASE_URL is not set: accounts and characters are lost on restart');
+    const characters = new InMemoryCharacterRepository();
+    repository = characters;
+    accounts = new InMemoryAccountRepository(characters);
   }
 
   const sessions = new SessionManager(repository, {
@@ -67,17 +80,23 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     options.sprites !== undefined ? options.sprites : createSpriteService(options.config);
   const appearances = new AppearanceRegistry();
 
+  await app.register(cookie);
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
 
   app.get('/health', async () => ({ status: 'ok', time: clock(), renderer: sprites !== null }));
 
   registerSpriteRoutes(app, sprites, appearances);
+  registerAuthRoutes(app, { accounts, clock, secureCookies: options.secureCookies ?? false });
 
-  app.get(GAME_SOCKET_PATH, { websocket: true }, (socket) => {
-    new GameConnection(socket, sessions, clock, app.log, {
-      rendererEnabled: sprites !== null,
-      appearances,
-    });
+  app.get(GAME_SOCKET_PATH, { websocket: true }, (socket, request) => {
+    new GameConnection(
+      socket,
+      sessions,
+      clock,
+      app.log,
+      { rendererEnabled: sprites !== null, appearances },
+      playerFromRequest(request, { accounts, clock }),
+    );
   });
 
   app.addHook('onClose', async () => {
